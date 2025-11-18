@@ -1,0 +1,252 @@
+﻿<Window x:Class="DailyDesktopApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="EUROGNOSI™ Online Classroom"
+        Height="800"
+        Width="1200"
+        MinHeight="600"
+        MinWidth="900"
+        Background="{DynamicResource AppBackgroundBrush}"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True">
+
+    <Window.Resources>
+        <!-- Theme-able brushes -->
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#020617"/>
+        <SolidColorBrush x:Key="TopBarBrush" Color="#020617"/>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#020617"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#1E293B"/>
+        <SolidColorBrush x:Key="StatusBarBrush" Color="#020617"/>
+
+        <!-- Theme-able text/icon brushes -->
+        <SolidColorBrush x:Key="TopBarTextBrush" Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="StatusTextBrush" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="IconForegroundBrush" Color="#E5E7EB"/>
+
+        <!-- Theme-able hover/pressed backgrounds for icon buttons -->
+        <SolidColorBrush x:Key="IconHoverBackgroundBrush" Color="#111827"/>
+        <SolidColorBrush x:Key="IconPressedBackgroundBrush" Color="#0F172A"/>
+
+        <!-- Icon button style -->
+        <Style x:Key="IconButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource IconForegroundBrush}"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="2"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border"
+                                    Property="Background"
+                                    Value="{DynamicResource IconHoverBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border"
+                                    Property="Background"
+                                    Value="{DynamicResource IconPressedBackgroundBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="#6B7280"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+
+
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="56"/>
+            <!-- Top bar -->
+            <RowDefinition Height="*"/>
+            <!-- Main content -->
+            <RowDefinition Height="32"/>
+            <!-- Status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- TOP BAR -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource TopBarBrush}"
+                BorderBrush="#0F172A"
+                BorderThickness="0,0,0,1">
+            <Grid Margin="16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo + title -->
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                                    <Image Source="pack://application:,,,/Assets/EurognosiStar.png"
+                           Width="28"
+                           Height="28"
+                           Margin="0,0,8,0"
+                           Stretch="UniformToFill"
+                           SnapsToDevicePixels="True"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <TextBlock x:Name="TitleText"
+                               Text="EUROGNOSI™ Online Classroom"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TopBarTextBrush}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+
+                <!-- Right controls -->
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Right">
+                    <!-- Language toggle -->
+                    <Button x:Name="LanguageToggleButton"
+                            Style="{StaticResource IconButtonStyle}"
+                            Click="LanguageToggleButton_Click"
+                            ToolTip="Switch language"
+                            Margin="0,0,6,0">
+                        <TextBlock x:Name="LanguageToggleLabel"
+                                   Text="EN"
+                                   FontFamily="Segoe UI"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"/>
+                    </Button>
+                    <!-- Theme toggle -->
+                    <Button x:Name="ThemeToggleButton"
+                            Style="{StaticResource IconButtonStyle}"
+                            Click="ThemeToggleButton_Click"
+                            ToolTip="Toggle light / dark mode"
+                            Margin="0,0,6,0">
+                        <!-- Sun / moon icon, text changed in code -->
+                        <TextBlock x:Name="ThemeToggleIcon" Text="&#xE706;"/>
+                    </Button>
+
+                    <!-- Home -->
+                    <Button x:Name="HomeButton"
+                            Style="{StaticResource IconButtonStyle}"
+                            Click="HomeButton_Click"
+                            ToolTip="Go to classroom selector"
+                            Margin="0,0,6,0">
+                        <TextBlock Text="&#xE80F;"/>
+                    </Button>
+
+                    <!-- Reload -->
+                    <Button x:Name="ReloadButton"
+                            Style="{StaticResource IconButtonStyle}"
+                            Click="ReloadButton_Click"
+                            ToolTip="Reload current page">
+                        <TextBlock Text="&#xE72C;"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- MAIN CONTENT -->
+        <Grid Grid.Row="1" Margin="16">
+            <!-- Outer card with nice rounded border -->
+            <Border Background="{DynamicResource CardBackgroundBrush}"
+            BorderBrush="{DynamicResource CardBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="4"
+            SnapsToDevicePixels="True">
+                <!-- Inner border actually clips the WebView contents -->
+                <Border Background="{DynamicResource CardBackgroundBrush}"
+                CornerRadius="10"
+                SnapsToDevicePixels="True"
+                ClipToBounds="True">
+                    <Grid>
+                        <wv2:WebView2 x:Name="DailyWebView"
+                              Source="about:blank"/>
+
+                        <Grid x:Name="LoadingOverlay"
+                      Background="{DynamicResource CardBackgroundBrush}"
+                      Opacity="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Width="480"
+                            Height="260"
+                            CornerRadius="16"
+                            Background="#0F172A"
+                            Opacity="0.95"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                                <StackPanel Margin="32">
+                                    <Rectangle Height="16"
+                                       Width="320"
+                                       RadiusX="4"
+                                       RadiusY="4"
+                                       Fill="#111827"
+                                       Margin="0,0,0,8"/>
+                                    <Rectangle Height="16"
+                                       Width="260"
+                                       RadiusX="4"
+                                       RadiusY="4"
+                                       Fill="#111827"
+                                       Margin="0,0,0,24"/>
+                                    <TextBlock Text="Preparing your classroom..."
+                                       Foreground="#9CA3AF"
+                                       FontSize="13"
+                                       Margin="0,0,0,8" TextAlignment="Center"/>
+                                    <ProgressBar Height="4"
+                                         Width="220"
+                                         IsIndeterminate="True"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Border>
+        </Grid>
+
+        <!-- STATUS BAR -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource StatusBarBrush}"
+                BorderBrush="#0F172A"
+                BorderThickness="0,1,0,0">
+            <Grid Margin="12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Ellipse Width="8"
+                         Height="8"
+                         VerticalAlignment="Center"
+                         Fill="#22C55E"
+                         Margin="0,0,6,0"/>
+
+                <TextBlock x:Name="StatusText"
+                           Grid.Column="1"
+                           VerticalAlignment="Center"
+                           FontSize="11"
+                           Foreground="{DynamicResource StatusTextBrush}"
+                           Text="Initializing…"/>
+
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,35 @@
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build output
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+
+## Publish & installer artifacts
+publish/
+Releases/
+*.vpk
+Setup.exe
+
+## NuGet
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+
+## VS Code
+.vscode/
+
+## Other
+*.cache
+*.log
+*.tmp
+Thumbs.db
+Desktop.ini
