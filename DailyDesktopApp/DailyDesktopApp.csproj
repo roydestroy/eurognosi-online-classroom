@@ -2,10 +2,22 @@
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
+
 		<!-- Windows 10 / 11 WPF app -->
 		<TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
 		<UseWPF>true</UseWPF>
 		<Nullable>enable</Nullable>
+		
+		<!-- REQUIRED FOR VELOPACK -->
+		<SelfContained>false</SelfContained>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		
+		<!-- Use app.manifest (toast/etc.) -->
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+
+		<!-- NEW: tell .NET to start from Program.Main -->
+		<StartupObject>DailyDesktopApp.Program</StartupObject>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -14,6 +26,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3595.46" />
+		<PackageReference Include="Velopack" Version="0.0.1298" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -39,6 +52,9 @@
 	    <Generator>SettingsSingleFileGenerator</Generator>
 	    <LastGenOutput>Settings.Designer.cs</LastGenOutput>
 	  </None>
+	</ItemGroup>
+	<ItemGroup>
+		<Resource Include="Assets\AppIcon.ico" />
 	</ItemGroup>
 
 </Project>
