@@ -106,7 +106,6 @@ namespace DailyDesktopApp
                                 `;
 
                                 var style = document.createElement('style');
-                                style.type = 'text/css';
                                 style.setAttribute('data-eg-no-scroll', '1');
                                 style.appendChild(document.createTextNode(css));
                                 (document.head || document.documentElement).appendChild(style);
@@ -116,21 +115,39 @@ namespace DailyDesktopApp
 
                         function hideCookieBanner() {
                             try {
-                                var candidates = document.querySelectorAll(
-                                    'div[id*=""cookie""], div[class*=""cookie""],' +
-                                    'section[id*=""cookie""], section[class*=""cookie""]'
+                                // 1) Explicitly target the Wix cookie banner
+                                var roots = document.querySelectorAll(
+                                    '[data-hook=""consent-banner-root""], .consent-banner-root'
                                 );
 
-                                candidates.forEach(function (el) {
-                                    var text = (el.textContent || """").toLowerCase();
-                                    if (text.includes(""we use cookies on this website"") ||
-                                        text.includes(""cookie settings"") ||
-                                        text.includes(""cookies policy"")) {
-                                        el.style.display = ""none"";
-                                    }
+                                roots.forEach(function (root) {
+                                    // either remove it completely:
+                                    // root.remove();
+                                    // or just hide it:
+                                    root.style.display = 'none';
+                                    root.setAttribute('aria-hidden', 'true');
+                                    root.setAttribute('tabindex', '-1');
                                 });
+
+                                // 2) Fallback: generic cookie containers, just in case
+                                if (roots.length === 0) {
+                                    var candidates = document.querySelectorAll(
+                                        'div[id*=""cookie""], div[class*=""cookie""], ' +
+                                        'section[id*=""cookie""], section[class*=""cookie""]'
+                                    );
+
+                                    candidates.forEach(function (el) {
+                                        var text = (el.textContent || '').toLowerCase();
+                                        if (text.includes('we use cookies on this website') ||
+                                            text.includes('cookie settings') ||
+                                            text.includes('cookies policy')) {
+                                            el.style.display = 'none';
+                                            el.setAttribute('aria-hidden', 'true');
+                                        }
+                                    });
+                                }
                             } catch (e) {
-                                console.error(""EG hide-cookie error"", e);
+                                console.error('EG hide-cookie error', e);
                             }
                         }
 
@@ -236,7 +253,7 @@ namespace DailyDesktopApp
 
         private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
         {
-            StatusText.Text = $"Navigating to: {e.Uri}";
+            StatusText.Text = $"Connecting to online classroom system…";
             ShowLoading();
         }
 
