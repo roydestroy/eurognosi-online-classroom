@@ -4,81 +4,35 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Input;
-
 
 namespace DailyDesktopApp
 {
     public partial class MainWindow : Window
     {
+        // ============================
+        // CONSTANTS + FIELDS
+        // ============================
+
         // URLs for Greek & English pages
-        private const string GreekStartUrl = "https://www.eurognosi-fni.com/online-classroom-app?source=desktop";
-        private const string EnglishStartUrl = "https://www.eurognosi-fni.com/en/online-classroom-app?source=desktop";
+        private const string GreekStartUrl =
+            "https://www.eurognosi-fni.com/online-classroom-app?source=desktop";
+        private const string EnglishStartUrl =
+            "https://www.eurognosi-fni.com/en/online-classroom-app?source=desktop";
 
         private readonly string _windowStatePath;
+
         private bool _isDarkTheme = true;
         private bool _isEnglish = false; // default Greek
-        private void TopBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2 && e.ChangedButton == MouseButton.Left)
-            {
-                // Double-click to maximize / restore
-                ToggleMaxRestore();
-            }
-            else if (e.ButtonState == MouseButtonState.Pressed)
-            {
-                // Drag the window
-                try
-                {
-                    DragMove();
-                }
-                catch
-                {
-                    // ignore small race conditions when clicking buttons
-                }
-            }
-        }
-
-        private void MinButton_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
-
-        private void MaxButton_Click(object sender, RoutedEventArgs e)
-        {
-            ToggleMaxRestore();
-        }
-
-        private void CloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
-
-        private void ToggleMaxRestore()
-        {
-            if (WindowState == WindowState.Maximized)
-            {
-                WindowState = WindowState.Normal;
-                if (MaxButtonIcon != null)
-                {
-                    // Maximize icon
-                    MaxButtonIcon.Text = "\uE922"; // square
-                }
-            }
-            else
-            {
-                WindowState = WindowState.Maximized;
-                if (MaxButtonIcon != null)
-                {
-                    // Restore icon
-                    MaxButtonIcon.Text = "\uE923"; // overlapping squares
-                }
-            }
-        }
 
         private string CurrentStartUrl => _isEnglish ? EnglishStartUrl : GreekStartUrl;
+
+        // ============================
+        // CONSTRUCTOR
+        // ============================
 
         public MainWindow()
         {
@@ -152,6 +106,7 @@ namespace DailyDesktopApp
                                 `;
 
                                 var style = document.createElement('style');
+                                style.type = 'text/css';
                                 style.setAttribute('data-eg-no-scroll', '1');
                                 style.appendChild(document.createTextNode(css));
                                 (document.head || document.documentElement).appendChild(style);
@@ -159,12 +114,40 @@ namespace DailyDesktopApp
                             } catch (e) { console.error(e); }
                         }
 
-                        if (document.readyState === 'loading')
-                            document.addEventListener('DOMContentLoaded', injectNoScroll);
-                        else
-                            injectNoScroll();
+                        function hideCookieBanner() {
+                            try {
+                                var candidates = document.querySelectorAll(
+                                    'div[id*=""cookie""], div[class*=""cookie""],' +
+                                    'section[id*=""cookie""], section[class*=""cookie""]'
+                                );
 
-                        var mo = new MutationObserver(injectNoScroll);
+                                candidates.forEach(function (el) {
+                                    var text = (el.textContent || """").toLowerCase();
+                                    if (text.includes(""we use cookies on this website"") ||
+                                        text.includes(""cookie settings"") ||
+                                        text.includes(""cookies policy"")) {
+                                        el.style.display = ""none"";
+                                    }
+                                });
+                            } catch (e) {
+                                console.error(""EG hide-cookie error"", e);
+                            }
+                        }
+
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function () {
+                                injectNoScroll();
+                                hideCookieBanner();
+                            });
+                        } else {
+                            injectNoScroll();
+                            hideCookieBanner();
+                        }
+
+                        var mo = new MutationObserver(function () {
+                            injectNoScroll();
+                            hideCookieBanner();
+                        });
                         mo.observe(document.documentElement, {
                             childList: true,
                             subtree: true,
@@ -184,6 +167,45 @@ namespace DailyDesktopApp
             catch (Exception ex)
             {
                 StatusText.Text = $"WebView2 initialization failed: {ex.Message}";
+            }
+        }
+
+        // ============================
+        // CUSTOM CHROME (DRAG/MAX)
+        // ============================
+
+        private void MinButton_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void MaxButton_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleMaxRestore();
+        }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        private void ToggleMaxRestore()
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Normal;
+                if (MaxButtonIcon != null)
+                {
+                    MaxButtonIcon.Text = "\uE922"; // maximize (square)
+                }
+            }
+            else
+            {
+                WindowState = WindowState.Maximized;
+                if (MaxButtonIcon != null)
+                {
+                    MaxButtonIcon.Text = "\uE923"; // restore (overlapping squares)
+                }
             }
         }
 
@@ -241,10 +263,18 @@ namespace DailyDesktopApp
 
             LoadingOverlay.Visibility = Visibility.Visible;
 
-            var overlayFadeIn = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(150) };
+            var overlayFadeIn = new DoubleAnimation
+            {
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(150)
+            };
             LoadingOverlay.BeginAnimation(OpacityProperty, overlayFadeIn);
 
-            var webFadeOut = new DoubleAnimation { To = 0, Duration = TimeSpan.FromMilliseconds(150) };
+            var webFadeOut = new DoubleAnimation
+            {
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(150)
+            };
             DailyWebView.BeginAnimation(OpacityProperty, webFadeOut);
         }
 
@@ -252,16 +282,27 @@ namespace DailyDesktopApp
         {
             if (LoadingOverlay == null) return;
 
-            var overlayFadeOut = new DoubleAnimation { To = 0, Duration = TimeSpan.FromMilliseconds(250) };
-            overlayFadeOut.Completed += (_, _) => LoadingOverlay.Visibility = Visibility.Collapsed;
+            var overlayFadeOut = new DoubleAnimation
+            {
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(250)
+            };
+            overlayFadeOut.Completed += (_, _) =>
+            {
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+            };
             LoadingOverlay.BeginAnimation(OpacityProperty, overlayFadeOut);
 
-            var webFadeIn = new DoubleAnimation { To = 1, Duration = TimeSpan.FromMilliseconds(250) };
+            var webFadeIn = new DoubleAnimation
+            {
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(250)
+            };
             DailyWebView.BeginAnimation(OpacityProperty, webFadeIn);
         }
 
         // ============================
-        // UI BUTTONS
+        // TOP BAR BUTTONS
         // ============================
 
         private void HomeButton_Click(object sender, RoutedEventArgs e)
@@ -294,15 +335,15 @@ namespace DailyDesktopApp
             NavigateToHome();
         }
 
-        // ============================
-        // THEME SYSTEM
-        // ============================
-
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
             ApplyTheme(!_isDarkTheme);
             SaveWindowState();
         }
+
+        // ============================
+        // THEME SYSTEM
+        // ============================
 
         private void ApplyTheme(bool dark)
         {
@@ -352,7 +393,9 @@ namespace DailyDesktopApp
                 LanguageToggleLabel.Text = _isEnglish ? "EN" : "ΕΛ";
 
             if (LanguageToggleButton != null)
-                LanguageToggleButton.ToolTip = _isEnglish ? "Switch to Greek" : "Switch to English";
+                LanguageToggleButton.ToolTip = _isEnglish
+                    ? "Switch to Greek"
+                    : "Switch to English";
 
             if (TitleText != null)
                 TitleText.Text = _isEnglish
@@ -431,7 +474,7 @@ namespace DailyDesktopApp
                 var folder = Path.GetDirectoryName(_windowStatePath);
                 if (!string.IsNullOrEmpty(folder) && !Directory.Exists(folder))
                 {
-                    Directory.CreateDirectory(folder!);  // the ! tells the compiler “I know this isn’t null”
+                    Directory.CreateDirectory(folder!);
                 }
 
                 var json = JsonSerializer.Serialize(state);
@@ -450,7 +493,7 @@ namespace DailyDesktopApp
             public double Left { get; set; }
             public double Top { get; set; }
             public bool? IsDarkTheme { get; set; }
-            public string? Language { get; set; }   // <- add ?
+            public string? Language { get; set; }
         }
     }
 }

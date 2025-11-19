@@ -93,122 +93,152 @@
         </Grid.RowDefinitions>
 
         <!-- TOP BAR -->
-        <Border Grid.Row="0"
-                Background="{DynamicResource TopBarBrush}"
-                BorderBrush="#0F172A"
-                BorderThickness="0,0,0,1"
-                MouseLeftButtonDown="TopBar_MouseLeftButtonDown">
-            <Grid Margin="16,0">
+        <Border x:Name="TopBarBorder"
+        Grid.Row="0"
+        Background="{DynamicResource TopBarBrush}"
+        BorderBrush="#0F172A"
+        BorderThickness="0,0,0,1">
+            <Grid Margin="12,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <!-- logo + title -->
+                    <ColumnDefinition Width="*"/>
+                    <!-- centered actions -->
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- window controls -->
                 </Grid.ColumnDefinitions>
 
                 <!-- Logo + title -->
-                <StackPanel Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                                    <Image Source="pack://application:,,,/Assets/EurognosiStar.png"
-                           Width="28"
-                           Height="28"
-                           Margin="0,0,8,0"
-                           Stretch="UniformToFill"
-                           SnapsToDevicePixels="True"
-                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    <TextBlock x:Name="TitleText"
-                               Text="EUROGNOSI™ Online Classroom"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource TopBarTextBrush}"
-                               VerticalAlignment="Center" />
+                <StackPanel Grid.Column="0"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center">
+                    <Image Source="pack://application:,,,/Assets/EurognosiStar.png"
+                   Width="28"
+                   Height="28"
+                   Margin="0,0,8,0"
+                   Stretch="UniformToFill"
+                   SnapsToDevicePixels="True"
+                   RenderOptions.BitmapScalingMode="HighQuality" />
+                    <TextBlock x:Name="TitleText"
+                       Text="EUROGNOSI™ Online Classroom"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TopBarTextBrush}"
+                       VerticalAlignment="Center" />
                 </StackPanel>
 
-
-                <!-- Right controls -->
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Right">
-                    <!-- Language toggle -->
+                <!-- Centered action buttons (same size) -->
+                <StackPanel Grid.Column="0"
+                    Grid.ColumnSpan="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Margin="0">
+                    <!-- Language -->
                     <Button x:Name="LanguageToggleButton"
+                            Width="32" Height="32"
                             Style="{StaticResource IconButtonStyle}"
                             Click="LanguageToggleButton_Click"
                             ToolTip="Switch language"
-                            Margin="0,0,6,0">
+                            Margin="0,0,6,0"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
                         <TextBlock x:Name="LanguageToggleLabel"
-                                   Text="EN"
-                                   FontFamily="Segoe UI"
-                                   FontSize="12"
-                                   FontWeight="SemiBold"/>
+                           Text="EN"
+                           FontFamily="Segoe UI"
+                           FontSize="12"
+                           FontWeight="SemiBold" />
                     </Button>
-                    <!-- Theme toggle -->
+
+                    <!-- Theme -->
                     <Button x:Name="ThemeToggleButton"
+                            Width="32" Height="32"
                             Style="{StaticResource IconButtonStyle}"
                             Click="ThemeToggleButton_Click"
                             ToolTip="Toggle light / dark mode"
-                            Margin="0,0,6,0">
-                        <!-- Sun / moon icon, text changed in code -->
-                        <TextBlock x:Name="ThemeToggleIcon" Text="&#xE706;"/>
+                            Margin="0,0,6,0"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                        <TextBlock x:Name="ThemeToggleIcon"
+                           Text="&#xE706;"/>
                     </Button>
 
                     <!-- Home -->
                     <Button x:Name="HomeButton"
+                            Width="32" Height="32"
                             Style="{StaticResource IconButtonStyle}"
                             Click="HomeButton_Click"
                             ToolTip="Go to classroom selector"
-                            Margin="0,0,6,0">
+                            Margin="0,0,6,0"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
                         <TextBlock Text="&#xE80F;"/>
                     </Button>
 
                     <!-- Reload -->
                     <Button x:Name="ReloadButton"
+                            Width="32" Height="32"
                             Style="{StaticResource IconButtonStyle}"
                             Click="ReloadButton_Click"
-                            ToolTip="Reload current page">
+                            ToolTip="Reload current page"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
                         <TextBlock Text="&#xE72C;"/>
                     </Button>
-                    <!-- WINDOW CONTROL BUTTONS -->
+                </StackPanel>
+
+                <!-- Window controls (right side, spaced out) -->
+                <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center">
+
+                    <!-- Minimize -->
                     <Button x:Name="MinButton"
                             Style="{StaticResource IconButtonStyle}"
+                            Width="28" Height="24"
+                            Margin="0,0,6,0"
                             Click="MinButton_Click"
                             ToolTip="Minimize"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                        <TextBlock Text="&#xE921;"/>
+                        <TextBlock Text="&#xE921;" FontSize="12"/>
                     </Button>
 
+                    <!-- Maximize / Restore -->
                     <Button x:Name="MaxButton"
                             Style="{StaticResource IconButtonStyle}"
+                            Width="28" Height="24"
+                            Margin="0,0,6,0"
                             Click="MaxButton_Click"
-                            ToolTip="Maximize / Restore"
+                            ToolTip="Maximize"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                        <!-- icon will be swapped in code -->
-                        <TextBlock x:Name="MaxButtonIcon" Text="&#xE922;"/>
+                        <TextBlock x:Name="MaxButtonIcon" Text="&#xE922;" FontSize="12"/>
                     </Button>
 
+                    <!-- Close -->
                     <Button x:Name="CloseButton"
                             Style="{StaticResource IconButtonStyle}"
+                            Width="28" Height="24"
                             Click="CloseButton_Click"
                             ToolTip="Close"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                        <TextBlock Text="&#xE8BB;"/>
+                        <TextBlock Text="&#xE8BB;" FontSize="12"/>
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
+
         <!-- MAIN CONTENT -->
-        <Grid Grid.Row="1" Margin="16">
+        <Grid x:Name="MainContentGrid" Grid.Row="1" Margin="16">
             <!-- Outer card with nice rounded border -->
             <Border Background="{DynamicResource CardBackgroundBrush}"
-            BorderBrush="{DynamicResource CardBorderBrush}"
-            BorderThickness="1"
-            CornerRadius="12"
-            Padding="4"
-            SnapsToDevicePixels="True">
+                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="4"
+                    SnapsToDevicePixels="True">
                 <!-- Inner border actually clips the WebView contents -->
                 <Border Background="{DynamicResource CardBackgroundBrush}"
-                CornerRadius="10"
-                SnapsToDevicePixels="True"
-                ClipToBounds="True">
+                        CornerRadius="10"
+                        SnapsToDevicePixels="True"
+                        ClipToBounds="True">
                     <Grid>
                         <wv2:WebView2 x:Name="DailyWebView"
                               Source="about:blank"/>
@@ -256,7 +286,8 @@
         </Grid>
 
         <!-- STATUS BAR -->
-        <Border Grid.Row="2"
+        <Border x:Name="StatusBarBorder"
+                Grid.Row="2"
                 Background="{DynamicResource StatusBarBrush}"
                 BorderBrush="#0F172A"
                 BorderThickness="0,1,0,0">
