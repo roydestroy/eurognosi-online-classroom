@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Web.WebView2.Core;
+using System.Windows.Controls;
+
 
 namespace DailyDesktopApp
 {
@@ -207,10 +209,15 @@ namespace DailyDesktopApp
         // --------------------------------------------------------------------
         // Venue selection
         // --------------------------------------------------------------------
-        private void VenueComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        private void VenueComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var venue = VenueComboBox.SelectedItem as string;
+
             TeacherComboBox.ItemsSource = null;
+            TeacherComboBox.SelectedItem = null;
+
+            // Disable by default
+            TeacherComboBox.IsEnabled = false;
 
             if (string.IsNullOrWhiteSpace(venue))
                 return;
@@ -229,8 +236,12 @@ namespace DailyDesktopApp
             TeacherComboBox.SelectedValuePath = "Id";
 
             if (teachers.Count > 0)
+            {
                 TeacherComboBox.SelectedIndex = 0;
+                TeacherComboBox.IsEnabled = true;   // <-- NOW ENABLED
+            }
         }
+
 
         // --------------------------------------------------------------------
         // Connect
