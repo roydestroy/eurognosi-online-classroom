@@ -70,5 +70,41 @@ namespace DailyDesktopApp.Properties {
                 this["WindowTop"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastRoomUrl {
+            get {
+                return ((string)(this["LastRoomUrl"]));
+            }
+            set {
+                this["LastRoomUrl"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastVenue {
+            get {
+                return ((string)(this["LastVenue"]));
+            }
+            set {
+                this["LastVenue"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastRoomId {
+            get {
+                return ((string)(this["LastRoomId"]));
+            }
+            set {
+                this["LastRoomId"] = value;
+            }
+        }
     }
 }

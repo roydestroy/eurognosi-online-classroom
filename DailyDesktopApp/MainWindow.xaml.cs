@@ -1,204 +1,407 @@
-﻿using Microsoft.Web.WebView2.Core;
-using System;
-using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
+using Microsoft.Web.WebView2.Core;
 
 namespace DailyDesktopApp
 {
     public partial class MainWindow : Window
     {
-        // ============================
-        // CONSTANTS + FIELDS
-        // ============================
+        // IMPORTANT: change to the real domain (NO trailing slash)
+        private const string ApiBaseUrl = "https://www.eurognosi-fni.com";
 
-        // URLs for Greek & English pages
-        private const string GreekStartUrl =
-            "https://www.eurognosi-fni.com/online-classroom-app?source=desktop";
-        private const string EnglishStartUrl =
-            "https://www.eurognosi-fni.com/en/online-classroom-app?source=desktop";
+        private static readonly HttpClient Http = new HttpClient();
 
-        private readonly string _windowStatePath;
+        private List<OnlineRoom> _rooms = new();
+        private string? _currentRoomUrl;
 
-        private bool _isDarkTheme = true;
-        private bool _isEnglish = false; // default Greek
+        // --------------------------------------------------------------------
+        // Overlay helpers
+        // --------------------------------------------------------------------
+        private void ShowLoadingOverlay(string? message = null)
+        {
+            if (LoadingOverlay != null)
+                LoadingOverlay.Visibility = Visibility.Visible;
 
-        private string CurrentStartUrl => _isEnglish ? EnglishStartUrl : GreekStartUrl;
+            if (!string.IsNullOrWhiteSpace(message))
+                StatusText.Text = message;
+        }
+        private void RestoreDropdownSelectionFromSettings()
+        {
+            var lastVenue = Properties.Settings.Default.LastVenue;
+            var lastRoomId = Properties.Settings.Default.LastRoomId;
 
-        // ============================
-        // CONSTRUCTOR
-        // ============================
+            if (string.IsNullOrWhiteSpace(lastVenue) || string.IsNullOrWhiteSpace(lastRoomId))
+                return;
 
+            if (_rooms == null || _rooms.Count == 0)
+                return;
+
+            // Set the School combo – this will also repopulate TeacherComboBox via SelectionChanged
+            if (VenueComboBox.ItemsSource != null &&
+                VenueComboBox.Items.Contains(lastVenue))
+            {
+                VenueComboBox.SelectedItem = lastVenue;
+            }
+            else
+            {
+                // if binding is list<string>, safer to force-set:
+                VenueComboBox.SelectedItem = lastVenue;
+            }
+
+            // Now try to select the correct teacher
+            var teacherList = TeacherComboBox.ItemsSource as IEnumerable<OnlineRoom>;
+            if (teacherList == null) return;
+
+            var match = teacherList.FirstOrDefault(r => r.Id == lastRoomId);
+            if (match != null)
+            {
+                TeacherComboBox.SelectedItem = match;
+            }
+        }
+
+        private void HideLoadingOverlay(string? message = null)
+        {
+            if (LoadingOverlay != null)
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+
+            if (!string.IsNullOrWhiteSpace(message))
+                StatusText.Text = message;
+        }
+
+        // --------------------------------------------------------------------
+        // ctor
+        // --------------------------------------------------------------------
         public MainWindow()
         {
             InitializeComponent();
 
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var appFolder = Path.Combine(appData, "EurognosiOnlineClassroom");
-            _windowStatePath = Path.Combine(appFolder, "window-state.json");
+            // Restore window size & position
+            Width = Properties.Settings.Default.WindowWidth;
+            Height = Properties.Settings.Default.WindowHeight;
+            Left = Properties.Settings.Default.WindowLeft;
+            Top = Properties.Settings.Default.WindowTop;
 
-            _isDarkTheme = true;
-            _isEnglish = false;
+            // Safety reset if window was saved off-screen
+            if (Left < 0 || Top < 0 ||
+                Left > SystemParameters.VirtualScreenWidth - 100 ||
+                Top > SystemParameters.VirtualScreenHeight - 100)
+            {
+                Left = 100;
+                Top = 100;
+            }
 
-            LoadWindowState();
-            UpdateLanguageUi();
+            // Restore last room for reconnect
+            var lastUrl = Properties.Settings.Default.LastRoomUrl;
+            if (!string.IsNullOrWhiteSpace(lastUrl))
+            {
+                _currentRoomUrl = lastUrl;
+                ReconnectButton.IsEnabled = true;
+            }
 
             Loaded += MainWindow_Loaded;
         }
 
-        // ================================================
-        //  RUN UPDATE CHECK *AFTER* WINDOW IS RENDERED
-        // ================================================
-        protected override async void OnContentRendered(EventArgs e)
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            base.OnContentRendered(e);
-
-            try
-            {
-                await UpdateService.CheckForUpdatesAsync();
-            }
-            catch
-            {
-                // silently ignore update errors
-            }
+            await InitializeWebViewAsync();
+            await LoadRoomsAsync();
         }
 
-        // ================================================
-        //  INITIALIZE WEBVIEW + LOAD CSS
-        // ================================================
-        private async void MainWindow_Loaded(object? sender, RoutedEventArgs e)
+        // --------------------------------------------------------------------
+        // WebView initialization
+        // --------------------------------------------------------------------
+        private async Task InitializeWebViewAsync()
         {
             try
             {
                 StatusText.Text = "Initializing browser…";
 
                 await DailyWebView.EnsureCoreWebView2Async(null);
+                var core = DailyWebView.CoreWebView2;
 
-                await DailyWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(@"
-                    (function () {
-                        function injectNoScroll() {
-                            try {
-                                if (document.querySelector('style[data-eg-no-scroll]'))
-                                    return;
+                core.Settings.AreDevToolsEnabled = true;
+                core.Settings.AreDefaultScriptDialogsEnabled = false; // no “changes may not be saved”
 
-                                var css = `
-                                    html, body {
-                                        overflow: hidden !important;
-                                        height: 100% !important;
-                                    }
-                                    #SITE_CONTAINER,
-                                    #site-root,
-                                    #SITE_BACKGROUND,
-                                    #SITE_ROOT,
-                                    .SITE_ROOT {
-                                        overflow: hidden !important;
-                                    }
-                                    *::-webkit-scrollbar {
-                                        width: 0 !important;
-                                        height: 0 !important;
-                                        display: none !important;
-                                    }
-                                `;
-
-                                var style = document.createElement('style');
-                                style.setAttribute('data-eg-no-scroll', '1');
-                                style.appendChild(document.createTextNode(css));
-                                (document.head || document.documentElement).appendChild(style);
-
-                            } catch (e) { console.error(e); }
-                        }
-
-                        function hideCookieBanner() {
-                            try {
-                                // 1) Explicitly target the Wix cookie banner
-                                var roots = document.querySelectorAll(
-                                    '[data-hook=""consent-banner-root""], .consent-banner-root'
-                                );
-
-                                roots.forEach(function (root) {
-                                    // either remove it completely:
-                                    // root.remove();
-                                    // or just hide it:
-                                    root.style.display = 'none';
-                                    root.setAttribute('aria-hidden', 'true');
-                                    root.setAttribute('tabindex', '-1');
-                                });
-
-                                // 2) Fallback: generic cookie containers, just in case
-                                if (roots.length === 0) {
-                                    var candidates = document.querySelectorAll(
-                                        'div[id*=""cookie""], div[class*=""cookie""], ' +
-                                        'section[id*=""cookie""], section[class*=""cookie""]'
-                                    );
-
-                                    candidates.forEach(function (el) {
-                                        var text = (el.textContent || '').toLowerCase();
-                                        if (text.includes('we use cookies on this website') ||
-                                            text.includes('cookie settings') ||
-                                            text.includes('cookies policy')) {
-                                            el.style.display = 'none';
-                                            el.setAttribute('aria-hidden', 'true');
-                                        }
-                                    });
-                                }
-                            } catch (e) {
-                                console.error('EG hide-cookie error', e);
-                            }
-                        }
-
-                        if (document.readyState === 'loading') {
-                            document.addEventListener('DOMContentLoaded', function () {
-                                injectNoScroll();
-                                hideCookieBanner();
-                            });
-                        } else {
-                            injectNoScroll();
-                            hideCookieBanner();
-                        }
-
-                        var mo = new MutationObserver(function () {
-                            injectNoScroll();
-                            hideCookieBanner();
-                        });
-                        mo.observe(document.documentElement, {
-                            childList: true,
-                            subtree: true,
-                            attributes: true,
-                            attributeFilter: ['style','class']
-                        });
-                    })();
+                // hide scrollbars
+                await core.AddScriptToExecuteOnDocumentCreatedAsync(@"
+                    const s = document.createElement('style');
+                    s.innerHTML = `
+                        ::-webkit-scrollbar { display:none !important; }
+                        html,body { overflow:hidden !important; }
+                    `;
+                    document.head.appendChild(s);
                 ");
 
-                DailyWebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
-                DailyWebView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
-                DailyWebView.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
+                core.NavigationStarting += (_, __) =>
+                {
+                    ShowLoadingOverlay("Preparing your classroom…");
+                };
 
-                ShowLoading();
-                NavigateToHome();
+                core.NavigationCompleted += (_, eArgs) =>
+                {
+                    if (eArgs.IsSuccess)
+                        HideLoadingOverlay("Connected.");
+                    else
+                        HideLoadingOverlay($"Navigation failed: {eArgs.WebErrorStatus}");
+                };
+
+                StatusText.Text = "Browser ready.";
             }
             catch (Exception ex)
             {
-                StatusText.Text = $"WebView2 initialization failed: {ex.Message}";
+                HideLoadingOverlay();
+                StatusText.Text = $"WebView error: {ex.Message}";
             }
         }
 
-        // ============================
-        // CUSTOM CHROME (DRAG/MAX)
-        // ============================
+        // --------------------------------------------------------------------
+        // Load rooms from Wix
+        // --------------------------------------------------------------------
+        private async Task LoadRoomsAsync()
+        {
+            try
+            {
+                StatusText.Text = "Loading classrooms…";
+
+                var url = $"{ApiBaseUrl}/_functions/appOnlineRooms";
+                var response = await Http.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
+
+                _rooms = JsonSerializer.Deserialize<List<OnlineRoom>>(json,
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                         ?? new List<OnlineRoom>();
+
+                if (_rooms.Count == 0)
+                {
+                    StatusText.Text = "No classrooms found.";
+                    return;
+                }
+
+                var venues = _rooms
+                    .Select(r => r.Venue)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList();
+
+                VenueComboBox.ItemsSource = venues;
+                StatusText.Text = "Select a school and teacher.";
+                // ✅ Try to restore last used venue/teacher, if any
+                RestoreDropdownSelectionFromSettings();
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Error loading rooms: {ex.Message}";
+            }
+        }
+
+        // --------------------------------------------------------------------
+        // Venue selection
+        // --------------------------------------------------------------------
+        private void VenueComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            var venue = VenueComboBox.SelectedItem as string;
+            TeacherComboBox.ItemsSource = null;
+
+            if (string.IsNullOrWhiteSpace(venue))
+                return;
+
+            var teachers = _rooms
+                .Where(r => r.Venue == venue)
+                .OrderBy(r =>
+                {
+                    var name = r.TeacherName?.ToLower() ?? "";
+                    return name.Contains("study lab") ? "zzz" + name : name;
+                })
+                .ToList();
+
+            TeacherComboBox.ItemsSource = teachers;
+            TeacherComboBox.DisplayMemberPath = "DisplayName";
+            TeacherComboBox.SelectedValuePath = "Id";
+
+            if (teachers.Count > 0)
+                TeacherComboBox.SelectedIndex = 0;
+        }
+
+        // --------------------------------------------------------------------
+        // Connect
+        // --------------------------------------------------------------------
+        private async void ConnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            var venue = VenueComboBox.SelectedItem as string;
+            var room = TeacherComboBox.SelectedItem as OnlineRoom;
+
+            if (string.IsNullOrWhiteSpace(venue) || room == null)
+            {
+                StatusText.Text = "Please select both a school and a teacher.";
+                return;
+            }
+
+            try
+            {
+                StatusText.Text = "Requesting secure link…";
+                ShowLoadingOverlay("Preparing your classroom…");
+
+                var requestObj = new
+                {
+                    roomId = room.Id,
+                    appKey = "th3fukingkeyf0rtheapptowork"  // replace with your real secret
+                };
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(requestObj),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await Http.PostAsync($"{ApiBaseUrl}/_functions/appDailyRoomUrl", content);
+                response.EnsureSuccessStatusCode();
+
+                var respJson = await response.Content.ReadAsStringAsync();
+
+                var tokenResp = JsonSerializer.Deserialize<DailyRoomResponse>(respJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (tokenResp == null || string.IsNullOrWhiteSpace(tokenResp.RoomUrl))
+                {
+                    HideLoadingOverlay("Invalid server response.");
+                    return;
+                }
+
+                _currentRoomUrl = tokenResp.RoomUrl;
+
+                // save for future reconnects
+                Properties.Settings.Default.LastRoomUrl = _currentRoomUrl;
+                Properties.Settings.Default.LastVenue = venue ?? "";
+                Properties.Settings.Default.LastRoomId = room.Id ?? "";
+                Properties.Settings.Default.Save();
+
+                ReconnectButton.IsEnabled = true;
+
+                DailyWebView.Source = new Uri(_currentRoomUrl);
+                // NavigationCompleted handler will hide overlay & update text
+            }
+            catch (Exception ex)
+            {
+                HideLoadingOverlay();
+                StatusText.Text = $"Connection error: {ex.Message}";
+            }
+        }
+
+        // --------------------------------------------------------------------
+        // Reconnect
+        // --------------------------------------------------------------------
+        private void ReconnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            // If in-memory url is empty, try to restore from settings
+            if (string.IsNullOrWhiteSpace(_currentRoomUrl))
+            {
+                var last = Properties.Settings.Default.LastRoomUrl;
+                if (!string.IsNullOrWhiteSpace(last))
+                {
+                    _currentRoomUrl = last;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(_currentRoomUrl))
+            {
+                StatusText.Text = "No previous session.";
+                return;
+            }
+
+            // ✅ Restore dropdowns to match the session we’re reconnecting to
+            RestoreDropdownSelectionFromSettings();
+
+            try
+            {
+                ShowLoadingOverlay("Reconnecting to your classroom…");
+                DailyWebView.Source = new Uri(_currentRoomUrl);
+                // overlay will be hidden in NavigationCompleted
+            }
+            catch (Exception ex)
+            {
+                HideLoadingOverlay();
+                StatusText.Text = $"Reconnect failed: {ex.Message}";
+            }
+        }
+
+        // --------------------------------------------------------------------
+        // Home (clear UI but KEEP last session)
+        // --------------------------------------------------------------------
+        private void HomeButton_Click(object sender, RoutedEventArgs e)
+        {
+            // We intentionally DO NOT clear _currentRoomUrl or LastRoomUrl
+            // so that Reconnect still knows where to go.
+
+            DailyWebView.Source = new Uri("about:blank");
+            VenueComboBox.SelectedItem = null;
+            TeacherComboBox.ItemsSource = null;
+            TeacherComboBox.SelectedItem = null;
+
+            StatusText.Text = "Selection cleared. Use Reconnect to return to last classroom.";
+        }
+
+        // --------------------------------------------------------------------
+        // Reload current room
+        // --------------------------------------------------------------------
+        private void ReloadButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (DailyWebView.Source != null &&
+                    DailyWebView.Source.ToString() != "about:blank")
+                {
+                    ShowLoadingOverlay("Reloading classroom…");
+                    DailyWebView.Reload();
+                }
+                else
+                {
+                    StatusText.Text = "Nothing to reload.";
+                }
+            }
+            catch (Exception ex)
+            {
+                HideLoadingOverlay();
+                StatusText.Text = $"Reload failed: {ex.Message}";
+            }
+        }
+
+        // --------------------------------------------------------------------
+        // Custom title bar (drag + system buttons)
+        // --------------------------------------------------------------------
+        private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                try { DragMove(); } catch { /* ignore */ }
+            }
+        }
 
         private void MinButton_Click(object sender, RoutedEventArgs e)
         {
             WindowState = WindowState.Minimized;
         }
 
-        private void MaxButton_Click(object sender, RoutedEventArgs e)
+        private void MaxRestoreButton_Click(object sender, RoutedEventArgs e)
         {
-            ToggleMaxRestore();
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Normal;
+                MaxRestoreIcon.Text = "\uE922"; // maximize icon
+            }
+            else
+            {
+                WindowState = WindowState.Maximized;
+                MaxRestoreIcon.Text = "\uE923"; // restore icon
+            }
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -206,311 +409,38 @@ namespace DailyDesktopApp
             Close();
         }
 
-        private void ToggleMaxRestore()
-        {
-            if (WindowState == WindowState.Maximized)
-            {
-                WindowState = WindowState.Normal;
-                if (MaxButtonIcon != null)
-                {
-                    MaxButtonIcon.Text = "\uE922"; // maximize (square)
-                }
-            }
-            else
-            {
-                WindowState = WindowState.Maximized;
-                if (MaxButtonIcon != null)
-                {
-                    MaxButtonIcon.Text = "\uE923"; // restore (overlapping squares)
-                }
-            }
-        }
-
-        // ============================
-        // NAVIGATION EVENTS
-        // ============================
-
-        private void NavigateToHome()
-        {
-            try
-            {
-                var url = CurrentStartUrl;
-
-                if (string.IsNullOrWhiteSpace(url))
-                {
-                    StatusText.Text = "No start URL configured.";
-                    return;
-                }
-
-                DailyWebView.Source = new Uri(url);
-                StatusText.Text = "Loading home page…";
-            }
-            catch (Exception ex)
-            {
-                StatusText.Text = $"Invalid start URL: {ex.Message}";
-            }
-        }
-
-        private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
-        {
-            StatusText.Text = $"Connecting to online classroom system…";
-            ShowLoading();
-        }
-
-        private void CoreWebView2_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
-        {
-            if (e.IsSuccess)
-            {
-                StatusText.Text = "Ready.";
-                HideLoading();
-            }
-            else
-            {
-                StatusText.Text = $"Navigation failed: {e.WebErrorStatus}";
-            }
-        }
-
-        // ============================
-        // LOADING ANIMATIONS
-        // ============================
-
-        private void ShowLoading()
-        {
-            if (LoadingOverlay == null) return;
-
-            LoadingOverlay.Visibility = Visibility.Visible;
-
-            var overlayFadeIn = new DoubleAnimation
-            {
-                To = 1,
-                Duration = TimeSpan.FromMilliseconds(150)
-            };
-            LoadingOverlay.BeginAnimation(OpacityProperty, overlayFadeIn);
-
-            var webFadeOut = new DoubleAnimation
-            {
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(150)
-            };
-            DailyWebView.BeginAnimation(OpacityProperty, webFadeOut);
-        }
-
-        private void HideLoading()
-        {
-            if (LoadingOverlay == null) return;
-
-            var overlayFadeOut = new DoubleAnimation
-            {
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(250)
-            };
-            overlayFadeOut.Completed += (_, _) =>
-            {
-                LoadingOverlay.Visibility = Visibility.Collapsed;
-            };
-            LoadingOverlay.BeginAnimation(OpacityProperty, overlayFadeOut);
-
-            var webFadeIn = new DoubleAnimation
-            {
-                To = 1,
-                Duration = TimeSpan.FromMilliseconds(250)
-            };
-            DailyWebView.BeginAnimation(OpacityProperty, webFadeIn);
-        }
-
-        // ============================
-        // TOP BAR BUTTONS
-        // ============================
-
-        private void HomeButton_Click(object sender, RoutedEventArgs e)
-        {
-            ShowLoading();
-            NavigateToHome();
-        }
-
-        private void ReloadButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                ShowLoading();
-                DailyWebView.Reload();
-                StatusText.Text = "Reloading…";
-            }
-            catch (Exception ex)
-            {
-                StatusText.Text = $"Reload failed: {ex.Message}";
-            }
-        }
-
-        private void LanguageToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            _isEnglish = !_isEnglish;
-            UpdateLanguageUi();
-            SaveWindowState();
-
-            ShowLoading();
-            NavigateToHome();
-        }
-
-        private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            ApplyTheme(!_isDarkTheme);
-            SaveWindowState();
-        }
-
-        // ============================
-        // THEME SYSTEM
-        // ============================
-
-        private void ApplyTheme(bool dark)
-        {
-            _isDarkTheme = dark;
-
-            if (dark)
-            {
-                Resources["AppBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#020617"));
-                Resources["TopBarBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#020617"));
-                Resources["CardBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#020617"));
-                Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B"));
-                Resources["StatusBarBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#020617"));
-                Resources["TopBarTextBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E7EB"));
-                Resources["StatusTextBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF"));
-                Resources["IconForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E7EB"));
-                Resources["IconHoverBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#111827"));
-                Resources["IconPressedBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0F172A"));
-            }
-            else
-            {
-                Resources["AppBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3F4F6"));
-                Resources["TopBarBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFFF"));
-                Resources["CardBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFFFFF"));
-                Resources["CardBorderBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D1D5DB"));
-                Resources["StatusBarBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F9FAFB"));
-                Resources["TopBarTextBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#111827"));
-                Resources["StatusTextBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4B5563"));
-                Resources["IconForegroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4B5563"));
-                Resources["IconHoverBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E5E7EB"));
-                Resources["IconPressedBackgroundBrush"] = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D1D5DB"));
-            }
-
-            if (Resources["AppBackgroundBrush"] is Brush bg)
-                Background = bg;
-
-            if (ThemeToggleIcon != null)
-                ThemeToggleIcon.Text = dark ? "\uE706" : "\uE708";
-        }
-
-        // ============================
-        // LANGUAGE UI
-        // ============================
-
-        private void UpdateLanguageUi()
-        {
-            if (LanguageToggleLabel != null)
-                LanguageToggleLabel.Text = _isEnglish ? "EN" : "ΕΛ";
-
-            if (LanguageToggleButton != null)
-                LanguageToggleButton.ToolTip = _isEnglish
-                    ? "Switch to Greek"
-                    : "Switch to English";
-
-            if (TitleText != null)
-                TitleText.Text = _isEnglish
-                    ? "EUROGNOSI™ Online Classroom"
-                    : "ΕΥΡΩΓΝΩΣΗ™ Διαδικτυακή Τάξη";
-        }
-
-        // ============================
-        // WINDOW STATE SAVE / LOAD
-        // ============================
-
+        // --------------------------------------------------------------------
+        // Save window state
+        // --------------------------------------------------------------------
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
             base.OnClosing(e);
-            SaveWindowState();
+
+            Properties.Settings.Default.WindowWidth = Width;
+            Properties.Settings.Default.WindowHeight = Height;
+            Properties.Settings.Default.WindowLeft = Left;
+            Properties.Settings.Default.WindowTop = Top;
+            Properties.Settings.Default.Save();
         }
+    }
 
-        private void LoadWindowState()
-        {
-            try
-            {
-                if (!File.Exists(_windowStatePath))
-                    return;
+    // ------------------------------------------------------------------------
+    // Data classes
+    // ------------------------------------------------------------------------
+    public class OnlineRoom
+    {
+        public string Id { get; set; } = "";
+        public string Venue { get; set; } = "";
+        public string TeacherName { get; set; } = "";
+        public string RoomName { get; set; } = "";
+        public string DailySubdomain { get; set; } = "";
 
-                var json = File.ReadAllText(_windowStatePath);
-                var state = JsonSerializer.Deserialize<SavedWindowState>(json);
-                if (state == null) return;
+        public string DisplayName =>
+            string.IsNullOrWhiteSpace(TeacherName) ? RoomName : TeacherName;
+    }
 
-                if (state.Width > 400 && state.Height > 300)
-                {
-                    Width = state.Width;
-                    Height = state.Height;
-                }
-
-                if (!double.IsNaN(state.Left) && !double.IsNaN(state.Top))
-                {
-                    Left = state.Left;
-                    Top = state.Top;
-                }
-
-                if (Left < 0 || Top < 0 ||
-                    Left > SystemParameters.VirtualScreenWidth - 100 ||
-                    Top > SystemParameters.VirtualScreenHeight - 100)
-                {
-                    Left = 100;
-                    Top = 100;
-                }
-
-                if (state.IsDarkTheme.HasValue)
-                    _isDarkTheme = state.IsDarkTheme.Value;
-
-                _isEnglish = state.Language == "en";
-
-                ApplyTheme(_isDarkTheme);
-            }
-            catch
-            {
-                // Ignore
-            }
-        }
-
-        private void SaveWindowState()
-        {
-            try
-            {
-                var state = new SavedWindowState
-                {
-                    Width = Width,
-                    Height = Height,
-                    Left = Left,
-                    Top = Top,
-                    IsDarkTheme = _isDarkTheme,
-                    Language = _isEnglish ? "en" : "el"
-                };
-
-                var folder = Path.GetDirectoryName(_windowStatePath);
-                if (!string.IsNullOrEmpty(folder) && !Directory.Exists(folder))
-                {
-                    Directory.CreateDirectory(folder!);
-                }
-
-                var json = JsonSerializer.Serialize(state);
-                File.WriteAllText(_windowStatePath, json);
-            }
-            catch
-            {
-                // Ignore
-            }
-        }
-
-        private class SavedWindowState
-        {
-            public double Width { get; set; }
-            public double Height { get; set; }
-            public double Left { get; set; }
-            public double Top { get; set; }
-            public bool? IsDarkTheme { get; set; }
-            public string? Language { get; set; }
-        }
+    public class DailyRoomResponse
+    {
+        public string RoomUrl { get; set; } = "";
     }
 }
