@@ -17,8 +17,8 @@ namespace DailyDesktopApp
 
             // Start the normal WPF app
             var app = new App();
-            app.InitializeComponent();
-            app.Run();
+            // ❌ no app.InitializeComponent() – not needed and causing the error
+            app.Run();  // App.OnStartup will create and show MainWindow
         }
     }
 }

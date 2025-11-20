@@ -9,10 +9,13 @@ namespace DailyDesktopApp
         {
             base.OnStartup(e);
 
-            // Fire and forget – if it fails, the app still starts
-            _ = UpdateService.CheckForUpdatesAsync();
+            // Optional: background update check
+            _ = Task.Run(async () =>
+            {
+                try { await UpdateService.CheckForUpdatesAsync(); }
+                catch { /* swallow errors so app still starts */ }
+            });
 
-            // then show your main window
             var main = new MainWindow();
             main.Show();
         }
