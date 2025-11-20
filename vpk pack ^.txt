@@ -1,6 +1,6 @@
 vpk pack ^
   --packId Eurognosi.OnlineClassroom ^
-  --packVersion 1.1.3 ^
+  --packVersion 1.1.5 ^
   --packDir publish ^
   --mainExe DailyDesktopApp.exe ^
   --icon DailyDesktopApp\Assets\AppIcon.ico ^

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers; // <-- NEW
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Web.WebView2.Core;
 using System.Windows.Controls;
-
+using System.Windows.Media; // for VisualTreeHelper
 
 namespace DailyDesktopApp
 {
@@ -18,7 +19,23 @@ namespace DailyDesktopApp
         // IMPORTANT: change to the real domain (NO trailing slash)
         private const string ApiBaseUrl = "https://www.eurognosi-fni.com";
 
-        private static readonly HttpClient Http = new HttpClient();
+        // Use a single HttpClient with a browser-like User-Agent
+        private static readonly HttpClient Http;
+
+        // Static ctor to configure HttpClient once
+        static MainWindow()
+        {
+            var handler = new HttpClientHandler();
+            Http = new HttpClient(handler);
+
+            // Make our app look like a normal browser – this can bypass some filters
+            Http.DefaultRequestHeaders.UserAgent.ParseAdd(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/120.0.0.0 Safari/537.36");
+
+            Http.DefaultRequestHeaders.Accept.ParseAdd("application/json, text/json, */*");
+        }
 
         private List<OnlineRoom> _rooms = new();
         private string? _currentRoomUrl;
@@ -34,6 +51,7 @@ namespace DailyDesktopApp
             if (!string.IsNullOrWhiteSpace(message))
                 StatusText.Text = message;
         }
+
         private void RestoreDropdownSelectionFromSettings()
         {
             var lastVenue = Properties.Settings.Default.LastVenue;
@@ -83,6 +101,9 @@ namespace DailyDesktopApp
         public MainWindow()
         {
             InitializeComponent();
+
+            // Keep maximized window within the working area (above the taskbar)
+            MaxHeight = SystemParameters.WorkArea.Height +8;
 
             // Restore window size & position
             Width = Properties.Settings.Default.WindowWidth;
@@ -174,9 +195,23 @@ namespace DailyDesktopApp
 
                 var url = $"{ApiBaseUrl}/_functions/appOnlineRooms";
                 var response = await Http.GetAsync(url);
-                response.EnsureSuccessStatusCode();
+                var body = await response.Content.ReadAsStringAsync();
 
-                var json = await response.Content.ReadAsStringAsync();
+                // EXTRA DEBUG for the classroom PC
+                if (!response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show(
+                        $"URL: {response.RequestMessage?.RequestUri}\n" +
+                        $"Status: {(int)response.StatusCode} {response.StatusCode}\n\n" +
+                        $"Body (first 500 chars):\n" +
+                        (body.Length > 500 ? body.Substring(0, 500) : body),
+                        "Error loading rooms");
+
+                    StatusText.Text = $"Error loading rooms: {(int)response.StatusCode} {response.StatusCode}";
+                    return;
+                }
+
+                var json = body;
 
                 _rooms = JsonSerializer.Deserialize<List<OnlineRoom>>(json,
                             new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
@@ -242,7 +277,6 @@ namespace DailyDesktopApp
             }
         }
 
-
         // --------------------------------------------------------------------
         // Connect
         // --------------------------------------------------------------------
@@ -274,9 +308,21 @@ namespace DailyDesktopApp
                     "application/json");
 
                 var response = await Http.PostAsync($"{ApiBaseUrl}/_functions/appDailyRoomUrl", content);
-                response.EnsureSuccessStatusCode();
-
                 var respJson = await response.Content.ReadAsStringAsync();
+
+                // EXTRA DEBUG if POST fails
+                if (!response.IsSuccessStatusCode)
+                {
+                    MessageBox.Show(
+                        $"URL: {response.RequestMessage?.RequestUri}\n" +
+                        $"Status: {(int)response.StatusCode} {response.StatusCode}\n\n" +
+                        $"Body (first 500 chars):\n" +
+                        (respJson.Length > 500 ? respJson.Substring(0, 500) : respJson),
+                        "Error requesting Daily URL");
+
+                    HideLoadingOverlay($"Connection error: {(int)response.StatusCode} {response.StatusCode}");
+                    return;
+                }
 
                 var tokenResp = JsonSerializer.Deserialize<DailyRoomResponse>(respJson,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

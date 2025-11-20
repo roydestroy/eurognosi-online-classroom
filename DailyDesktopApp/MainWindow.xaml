@@ -72,7 +72,7 @@
             </Setter>
         </Style>
 
-        <!-- Standard window buttons -->
+        <!-- Standard window buttons (minimize / maximize) -->
         <Style x:Key="WindowButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#E5E7EB"/>
@@ -84,19 +84,34 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border">
+                        <!-- FULL clickable square, always 48x32 -->
+                        <Border x:Name="border"
+                        Background="{TemplateBinding Background}"
+                        Width="{TemplateBinding Width}"
+                        Height="{TemplateBinding Height}"
+                        CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
+                                      VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#111827"/>
+                                <Setter TargetName="border"
+                                Property="Background"
+                                Value="#111827"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#0F172A"/>
+                                <Setter TargetName="border"
+                                Property="Background"
+                                Value="#0F172A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border"
+                                Property="Opacity"
+                                Value="0.5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -105,26 +120,42 @@
         </Style>
 
         <!-- Close button -->
-        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowButtonStyle}">
+        <Style x:Key="CloseButtonStyle"
+       TargetType="Button"
+       BasedOn="{StaticResource WindowButtonStyle}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border">
+                        <Border x:Name="border"
+                        Background="{TemplateBinding Background}"
+                        Width="{TemplateBinding Width}"
+                        Height="{TemplateBinding Height}"
+                        CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
+                                      VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#DC2626"/>
+                                <Setter TargetName="border"
+                                Property="Background"
+                                Value="#DC2626"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#B91C1C"/>
+                                <Setter TargetName="border"
+                                Property="Background"
+                                Value="#B91C1C"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border"
+                                Property="Opacity"
+                                Value="0.5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
 
         <!-- Primary (Connect) -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
@@ -186,8 +217,7 @@
             <!-- TITLE BAR -->
             <Border Grid.Row="0"
                     Background="#020617"
-                    Padding="12,0"
-                    MouseDown="TitleBar_MouseDown">
+                    Padding="12,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -195,44 +225,53 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
+                    <!-- DRAG AREA: covers columns 0 + 1, but NOT the buttons -->
+                    <Border Grid.Column="0"
+                Grid.ColumnSpan="2"
+                Background="Transparent"
+                MouseDown="TitleBar_MouseDown"/>
+
                     <!-- Logo + Title -->
                     <StackPanel Grid.Column="0"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center">
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center">
                         <Image Source="pack://application:,,,/Assets/EurognosiStar.png"
-                               Width="26"
-                               Height="26"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
+                   Width="26"
+                   Height="26"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
                         <TextBlock Text="ΕΥΡΩΓΝΩΣΗ™ Online Classroom"
-                                   FontSize="16"
-                                   Foreground="#E5E7EB"
-                                   FontWeight="SemiBold"
-                                   Margin="8,0,0,0"
-                                   VerticalAlignment="Center"/>
+                       FontSize="16"
+                       Foreground="#E5E7EB"
+                       FontWeight="SemiBold"
+                       Margin="8,0,0,0"
+                       VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Window Buttons -->
+                    <!-- (optional) Spacer in column 1 if you use it -->
+
+                    <!-- Window Buttons (NON-draggable area) -->
                     <StackPanel Grid.Column="2"
-                                Orientation="Horizontal"
-                                VerticalAlignment="Center">
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center">
                         <Button Style="{StaticResource WindowButtonStyle}"
-                                Click="MinButton_Click">
+                    Click="MinButton_Click">
                             <TextBlock Text="&#xE921;"/>
                         </Button>
 
                         <Button x:Name="MaxRestoreButton"
-                                Style="{StaticResource WindowButtonStyle}"
-                                Click="MaxRestoreButton_Click">
+                    Style="{StaticResource WindowButtonStyle}"
+                    Click="MaxRestoreButton_Click">
                             <TextBlock x:Name="MaxRestoreIcon" Text="&#xE922;"/>
                         </Button>
 
                         <Button Style="{StaticResource CloseButtonStyle}"
-                                Click="CloseButton_Click">
+                    Click="CloseButton_Click">
                             <TextBlock Text="&#xE8BB;"/>
                         </Button>
                     </StackPanel>
                 </Grid>
             </Border>
+
 
             <!-- CONTROL BAR -->
             <Border Grid.Row="1"
