@@ -15,7 +15,6 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
 
-    <!-- WindowChrome MUST be a direct child of Window -->
     <WindowChrome.WindowChrome>
         <wc:WindowChrome
             CaptionHeight="0"
@@ -27,14 +26,196 @@
 
     <Window.Resources>
         <!-- Color palette -->
-        <SolidColorBrush x:Key="TopBarBrush" Color="#020617"/>
-        <SolidColorBrush x:Key="ControlBarBrush" Color="#020617"/>
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#020617"/>
-        <SolidColorBrush x:Key="CardBorderBrush" Color="#1E293B"/>
+        <SolidColorBrush x:Key="TopBarBrush" Color="#121212"/>
+        <SolidColorBrush x:Key="ControlBarBrush" Color="#121212"/>
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#121212"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#1E1E1E"/>
 
-        <!-- Center text vertically in all ComboBoxes -->
+        <!-- Dark rounded ComboBox, global for all ComboBoxes -->
+        <!-- Dark rounded ComboBox, global for all ComboBoxes -->
         <Style TargetType="ComboBox">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="BorderBrush" Value="#2A2A2A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <!-- This is the only real background for the box -->
+                        <Border x:Name="RootBorder"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="6">
+                            <Grid>
+                                <!-- CLICKABLE SURFACE -->
+                                <ToggleButton
+                            Name="ToggleButton"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Focusable="False"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay,
+                                                RelativeSource={RelativeSource TemplatedParent}}"
+                            ClickMode="Press"
+                            OverridesDefaultStyle="True">
+                                    <!-- We completely override the ToggleButton template
+                                 so it cannot draw its own blue background -->
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent"
+                                                Width="{TemplateBinding Width}"
+                                                Height="{TemplateBinding Height}">
+                                                <ContentPresenter
+                                                    HorizontalAlignment="Stretch"
+                                                    VerticalAlignment="Stretch"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+
+                                    <!-- CONTENT: text + arrow -->
+                                    <Grid Margin="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition />
+                                            <ColumnDefinition Width="24" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- SELECTED TEXT -->
+                                        <TextBlock
+                                    x:Name="PART_SelectedText"
+                                    Grid.Column="0"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    Text="{Binding SelectionBoxItem,
+                                                   RelativeSource={RelativeSource TemplatedParent}}"
+                                    TextTrimming="CharacterEllipsis"
+                                    FontSize="13"/>
+
+                                        <!-- ARROW -->
+                                        <Path
+                                    Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    Data="M 0 0 L 4 4 L 8 0 Z"
+                                    Fill="#E5E7EB"/>
+                                    </Grid>
+                                </ToggleButton>
+
+                                <!-- DROPDOWN POPUP -->
+                                <Popup
+                            Name="Popup"
+                            Placement="Bottom"
+                            IsOpen="{TemplateBinding IsDropDownOpen}"
+                            AllowsTransparency="True"
+                            Focusable="False"
+                            PopupAnimation="Slide">
+                                    <Border Background="#1E1E1E"
+                                    BorderBrush="#2A2A2A"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="2"
+                                    MinWidth="{Binding ActualWidth,
+                                                      RelativeSource={RelativeSource AncestorType=ComboBox}}">
+                                        <ScrollViewer>
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <!-- Hover -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder"
+                                Property="Background"
+                                Value="#202020"/>
+                            </Trigger>
+
+                            <!-- Open (pressed) -->
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="RootBorder"
+                                Property="Background"
+                                Value="#252525"/>
+                            </Trigger>
+
+                            <!-- Disabled -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="RootBorder"
+                                Property="Opacity"
+                                Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemBorder"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="6">
+                            <!-- Same 2-column layout as the header -->
+                            <Grid Margin="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="24"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Item text in the left column, centered -->
+                                <ContentPresenter
+                            Grid.Column="0"
+                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                            Margin="0"
+                            RecognizesAccessKey="True"/>
+                                <!-- Right column is just empty, it matches the arrow space -->
+                            </Grid>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <!-- Hover -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder"
+                                Property="Background"
+                                Value="#202020"/>
+                            </Trigger>
+
+                            <!-- Selected -->
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder"
+                                Property="Background"
+                                Value="#252525"/>
+                            </Trigger>
+
+                            <!-- Disabled -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Icon button (Home, Reload) -->
@@ -61,10 +242,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#111827"/>
+                                <Setter TargetName="border" Property="Background" Value="#1E1E1E"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#0F172A"/>
+                                <Setter TargetName="border" Property="Background" Value="#1A1A1A"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -101,12 +282,12 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border"
                                 Property="Background"
-                                Value="#111827"/>
+                                Value="#1E1E1E"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border"
                                 Property="Background"
-                                Value="#0F172A"/>
+                                Value="#1A1A1A"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border"
@@ -159,7 +340,7 @@
 
         <!-- Primary (Connect) -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Background" Value="#004497"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Width" Value="100"/>
             <Setter Property="Height" Value="28"/>
@@ -173,16 +354,16 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="#2563EB" CornerRadius="6">
+                        <Border x:Name="border" Background="#004497" CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1D4ED8"/>
+                                <Setter TargetName="border" Property="Background" Value="#9cbf49"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1E40AF"/>
+                                <Setter TargetName="border" Property="Background" Value="#7A993A"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Background" Value="#4B5563"/>
@@ -195,13 +376,13 @@
 
         <!-- Secondary (Reconnect) -->
         <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-            <Setter Property="Background" Value="#111827"/>
-            <Setter Property="Foreground" Value="#E5E7EB"/>
+            <Setter Property="Background" Value="#004497"/>
+            <Setter Property="Foreground" Value="White"/>
         </Style>
 
     </Window.Resources>
 
-    <Border Background="#020617">
+    <Border Background="#121212">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="44"/>
@@ -216,7 +397,7 @@
 
             <!-- TITLE BAR -->
             <Border Grid.Row="0"
-                    Background="#020617"
+                    Background="#121212"
                     Padding="12,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -276,7 +457,7 @@
             <!-- CONTROL BAR -->
             <Border Grid.Row="1"
                     Background="{StaticResource ControlBarBrush}"
-                    BorderBrush="#0F172A"
+                    BorderBrush="#1E1E1E"
                     BorderThickness="0,0,0,1">
                 <Grid Margin="16,8">
                     <!-- Two rows: labels row & controls row -->
@@ -311,31 +492,16 @@
 
                     <!-- Row 1: controls -->
 
-                    <!-- School combo -->
                     <ComboBox Grid.Row="1" Grid.Column="0"
                               x:Name="VenueComboBox"
-                              Height="28"
-                              Background="#F9FAFB"
-                              Foreground="#111827"
-                              BorderBrush="#374151"
-                              BorderThickness="1"
-                              Padding="4,2"
-                              VerticalContentAlignment="Center"
                               Margin="0,0,12,0"
                               SelectionChanged="VenueComboBox_SelectionChanged"/>
 
-                    <!-- Teacher combo -->
                     <ComboBox Grid.Row="1" Grid.Column="1"
                               x:Name="TeacherComboBox"
-                              Height="28"
-                              Background="#F9FAFB"
-                              Foreground="#111827"
-                              BorderBrush="#374151"
-                              BorderThickness="1"
-                              Padding="4,2"
-                              VerticalContentAlignment="Center"
-                              IsEnabled="False"
-                              Margin="0,0,12,0"/>
+                              Margin="0,0,12,0"
+                              IsEnabled="False"/>
+
 
                     <!-- Buttons -->
                     <StackPanel Grid.Row="1" Grid.Column="2"
@@ -393,33 +559,49 @@
                         CornerRadius="0"
                         SnapsToDevicePixels="True">
                     <Grid ClipToBounds="True">
-                        <wv2:WebView2 x:Name="DailyWebView" Source="about:blank"/>
+                        <!-- Empty state with EUROGNOSI logo -->
+                        <Grid x:Name="EmptyStateGrid"
+          Background="#121212"
+          Visibility="Visible">
+                            <Image Source="pack://application:,,,/Assets/EurognosiStar.png"
+               Width="160"
+               Opacity="0.10"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               IsHitTestVisible="False"/>
+                        </Grid>
 
-                        <!-- Loading overlay -->
+                        <!-- WebView2 (hidden until a room is loaded) -->
+                        <wv2:WebView2 x:Name="DailyWebView"
+                  Source="about:blank"
+                  Visibility="Collapsed"/>
+
+                        <!-- Loading overlay (kept on top for when WebView is visible) -->
                         <Grid x:Name="LoadingOverlay"
-                              Background="#CC020617"
-                              Visibility="Collapsed">
+          Background="#121212"
+          Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center"
-                                        VerticalAlignment="Center">
+                    VerticalAlignment="Center">
                                 <TextBlock Text="Preparing your classroom…"
-                                           Foreground="#E5E7EB"
-                                           FontSize="16"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,12"
-                                           HorizontalAlignment="Center"/>
+                       Foreground="#E5E7EB"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,12"
+                       HorizontalAlignment="Center"/>
                                 <ProgressBar IsIndeterminate="True"
-                                             Width="220"
-                                             Height="6"/>
+                         Width="220"
+                         Height="6"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
+
                 </Border>
             </Grid>
 
             <!-- STATUS BAR -->
             <Border Grid.Row="3"
-                    Background="#020617"
-                    BorderBrush="#0F172A"
+                    Background="#121212"
+                    BorderBrush="#1E1E1E"
                     BorderThickness="0,1,0,0">
                 <Grid Margin="12,0">
                     <Grid.ColumnDefinitions>

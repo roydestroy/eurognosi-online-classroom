@@ -8,9 +8,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Microsoft.Web.WebView2.Core;
 using System.Windows.Controls;
-using System.Windows.Media; // for VisualTreeHelper
 
 namespace DailyDesktopApp
 {
@@ -35,6 +33,22 @@ namespace DailyDesktopApp
                 "Chrome/120.0.0.0 Safari/537.36");
 
             Http.DefaultRequestHeaders.Accept.ParseAdd("application/json, text/json, */*");
+        }
+        private void UpdateEmptyState(bool hasRoom)
+        {
+            if (EmptyStateGrid == null || DailyWebView == null)
+                return;
+
+            if (hasRoom)
+            {
+                EmptyStateGrid.Visibility = Visibility.Collapsed;
+                DailyWebView.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                EmptyStateGrid.Visibility = Visibility.Visible;
+                DailyWebView.Visibility = Visibility.Collapsed;
+            }
         }
 
         private List<OnlineRoom> _rooms = new();
@@ -101,7 +115,7 @@ namespace DailyDesktopApp
         public MainWindow()
         {
             InitializeComponent();
-
+            UpdateEmptyState(false);
             // Keep maximized window within the working area (above the taskbar)
             MaxHeight = SystemParameters.WorkArea.Height +8;
 
@@ -129,6 +143,8 @@ namespace DailyDesktopApp
             }
 
             Loaded += MainWindow_Loaded;
+            // Start in "empty state"
+            UpdateEmptyState(false);
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -344,6 +360,7 @@ namespace DailyDesktopApp
                 ReconnectButton.IsEnabled = true;
 
                 DailyWebView.Source = new Uri(_currentRoomUrl);
+                UpdateEmptyState(true);
                 // NavigationCompleted handler will hide overlay & update text
             }
             catch (Exception ex)
@@ -381,6 +398,8 @@ namespace DailyDesktopApp
             {
                 ShowLoadingOverlay("Reconnecting to your classroom…");
                 DailyWebView.Source = new Uri(_currentRoomUrl);
+                UpdateEmptyState(true);
+
                 // overlay will be hidden in NavigationCompleted
             }
             catch (Exception ex)
@@ -399,6 +418,7 @@ namespace DailyDesktopApp
             // so that Reconnect still knows where to go.
 
             DailyWebView.Source = new Uri("about:blank");
+            UpdateEmptyState(false);
             VenueComboBox.SelectedItem = null;
             TeacherComboBox.ItemsSource = null;
             TeacherComboBox.SelectedItem = null;
@@ -494,7 +514,15 @@ namespace DailyDesktopApp
 
         public string DisplayName =>
             string.IsNullOrWhiteSpace(TeacherName) ? RoomName : TeacherName;
+
+        public override string ToString()
+        {
+            // This is what the ComboBox will show
+            return DisplayName;
+        }
+
     }
+
 
     public class DailyRoomResponse
     {
