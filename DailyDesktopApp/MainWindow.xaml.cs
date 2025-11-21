@@ -53,6 +53,20 @@ namespace DailyDesktopApp
 
         private List<OnlineRoom> _rooms = new();
         private string? _currentRoomUrl;
+        private void SetConnectedState(bool isConnected)
+        {
+            if (isConnected)
+            {
+                ReconnectButton.Content = "Disconnect";
+                ReconnectButton.Style = (Style)FindResource("DisconnectButtonStyle");
+            }
+            else
+            {
+                ReconnectButton.Content = "Reconnect";
+                ReconnectButton.Style = (Style)FindResource("SecondaryButtonStyle");
+                ReconnectButton.IsEnabled = false;
+            }
+        }
 
         // --------------------------------------------------------------------
         // Overlay helpers
@@ -139,12 +153,16 @@ namespace DailyDesktopApp
             if (!string.IsNullOrWhiteSpace(lastUrl))
             {
                 _currentRoomUrl = lastUrl;
+
+                ReconnectButton.Content = "Reconnect";
+                ReconnectButton.Style = (Style)FindResource("SecondaryButtonStyle");
                 ReconnectButton.IsEnabled = true;
             }
-
+            else
+            {
+                SetConnectedState(false); // no last room: keep disabled
+            }
             Loaded += MainWindow_Loaded;
-            // Start in "empty state"
-            UpdateEmptyState(false);
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -357,10 +375,12 @@ namespace DailyDesktopApp
                 Properties.Settings.Default.LastRoomId = room.Id ?? "";
                 Properties.Settings.Default.Save();
 
-                ReconnectButton.IsEnabled = true;
-
                 DailyWebView.Source = new Uri(_currentRoomUrl);
+
+                SetConnectedState(true);   // handle text + style
+                ReconnectButton.IsEnabled = true;
                 UpdateEmptyState(true);
+
                 // NavigationCompleted handler will hide overlay & update text
             }
             catch (Exception ex)
@@ -375,7 +395,36 @@ namespace DailyDesktopApp
         // --------------------------------------------------------------------
         private void ReconnectButton_Click(object sender, RoutedEventArgs e)
         {
-            // If in-memory url is empty, try to restore from settings
+            // 1) If the button is in "Disconnect" mode, use it to leave the room
+            var btnText = (ReconnectButton.Content as string) ?? ReconnectButton.Content?.ToString();
+
+            if (string.Equals(btnText, "Disconnect", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    // Leave Daily room by navigating away
+                    DailyWebView.Source = new Uri("about:blank");
+                }
+                catch
+                {
+                    // Fallback – in case about:blank Uri throws for any reason
+                    DailyWebView.Source = null;
+                }
+
+                // Show logo / empty state again
+                UpdateEmptyState(false);
+
+                StatusText.Text = "Disconnected.";
+
+                // Turn the button back into a disabled 'Reconnect'
+                ReconnectButton.Content = "Reconnect";
+                ReconnectButton.Style = (Style)FindResource("SecondaryButtonStyle");
+                ReconnectButton.IsEnabled = true;
+
+                return;
+            }
+
+            // 2) Normal RECONNECT behaviour (your original code)
             if (string.IsNullOrWhiteSpace(_currentRoomUrl))
             {
                 var last = Properties.Settings.Default.LastRoomUrl;
@@ -400,6 +449,7 @@ namespace DailyDesktopApp
                 DailyWebView.Source = new Uri(_currentRoomUrl);
                 UpdateEmptyState(true);
 
+                SetConnectedState(true);
                 // overlay will be hidden in NavigationCompleted
             }
             catch (Exception ex)
@@ -408,6 +458,7 @@ namespace DailyDesktopApp
                 StatusText.Text = $"Reconnect failed: {ex.Message}";
             }
         }
+
 
         // --------------------------------------------------------------------
         // Home (clear UI but KEEP last session)
@@ -419,6 +470,8 @@ namespace DailyDesktopApp
 
             DailyWebView.Source = new Uri("about:blank");
             UpdateEmptyState(false);
+            SetConnectedState(false);
+            ReconnectButton.IsEnabled = true; // allow reconnect to last room
             VenueComboBox.SelectedItem = null;
             TeacherComboBox.ItemsSource = null;
             TeacherComboBox.SelectedItem = null;
