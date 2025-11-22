@@ -25,11 +25,38 @@
     </WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <!-- Color palette -->
-        <SolidColorBrush x:Key="TopBarBrush" Color="#121212"/>
-        <SolidColorBrush x:Key="ControlBarBrush" Color="#121212"/>
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#121212"/>
-        <SolidColorBrush x:Key="CardBorderBrush" Color="#1E1E1E"/>
+        <!-- ========== EUROGNOSI BLUE PALETTE ========== -->
+        <!-- Main brand blue -->
+        <SolidColorBrush x:Key="EuroBlueBase" Color="#003366"/>
+        <!-- Slightly darker (cards / panels) -->
+        <SolidColorBrush x:Key="EuroBlueDark" Color="#003366"/>
+        <!-- Even darker (borders / separation) -->
+        <SolidColorBrush x:Key="EuroBlueDarker" Color="#002B57"/>
+        <!-- Slightly lighter (hover / accents) -->
+        <SolidColorBrush x:Key="EuroBlueLight" Color="#003366"/>
+
+        <!-- OLD NAMES, NOW MAPPED TO BLUE SHADES -->
+        <SolidColorBrush x:Key="TopBarBrush" Color="#001527"/>
+        <!-- Title bar -->
+        <SolidColorBrush x:Key="ControlBarBrush" Color="#001527"/>
+        <!-- Combo bar -->
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#001527"/>
+        <!-- Main card -->
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#003366"/>
+        <!-- Card border -->
+
+        <!-- Backgrounds used around the app -->
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#001527"/>
+        <SolidColorBrush x:Key="WindowBackgroundDarkBrush" Color="#001527"/>
+        <SolidColorBrush x:Key="WindowStatusBarBrush" Color="#001527"/>
+
+        <!-- ComboBox-specific blues -->
+        <SolidColorBrush x:Key="ComboBackgroundBrush" Color="#003366"/>
+        <SolidColorBrush x:Key="ComboBorderBrush" Color="#003D7A"/>
+        <SolidColorBrush x:Key="ComboHoverBrush" Color="#9cbf49"/>
+        <SolidColorBrush x:Key="ComboOpenBrush" Color="#7A993A"/>
+        <SolidColorBrush x:Key="ComboItemHoverBrush" Color="#7A993A"/>
+        <SolidColorBrush x:Key="ComboItemSelectedBrush" Color="#9cbf49"/>
 
         <!-- Disconnect (Red) -->
         <Style x:Key="DisconnectButtonStyle" TargetType="Button">
@@ -48,11 +75,12 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border"
-                        Background="{TemplateBinding Background}"
-                        CornerRadius="6">
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6">
                             <ContentPresenter
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"/>
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Margin="0,-1,0,1"/>
                         </Border>
 
                         <ControlTemplate.Triggers>
@@ -73,7 +101,7 @@
             </Setter>
         </Style>
 
-        <!-- Dark rounded ComboBox, global for all ComboBoxes -->
+        <!-- Dark rounded ComboBox, now BLUE-based -->
         <Style TargetType="ComboBox">
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="OverridesDefaultStyle" Value="True"/>
@@ -82,44 +110,43 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="#E5E7EB"/>
-            <Setter Property="BorderBrush" Value="#2A2A2A"/>
+            <Setter Property="BorderBrush" Value="{StaticResource ComboBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,2"/>
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Height" Value="28"/>
-            <Setter Property="Background" Value="#1E1E1E"/>
+            <Setter Property="Background" Value="{StaticResource ComboBackgroundBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
                         <!-- This is the only real background for the box -->
                         <Border x:Name="RootBorder"
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="6">
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6">
                             <Grid>
                                 <!-- CLICKABLE SURFACE -->
                                 <ToggleButton
-                            Name="ToggleButton"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Focusable="False"
-                            HorizontalAlignment="Stretch"
-                            VerticalAlignment="Stretch"
-                            IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay,
-                                                RelativeSource={RelativeSource TemplatedParent}}"
-                            ClickMode="Press"
-                            OverridesDefaultStyle="True">
+                                Name="ToggleButton"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Focusable="False"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch"
+                                IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay,
+                                                    RelativeSource={RelativeSource TemplatedParent}}"
+                                ClickMode="Press"
+                                OverridesDefaultStyle="True">
                                     <!-- We completely override the ToggleButton template
-                                 so it cannot draw its own blue background -->
+                                     so it cannot draw its own background -->
                                     <ToggleButton.Template>
                                         <ControlTemplate TargetType="ToggleButton">
                                             <Border Background="Transparent"
                                                 Width="{TemplateBinding Width}"
                                                 Height="{TemplateBinding Height}">
                                                 <ContentPresenter
-                                                    HorizontalAlignment="Stretch"
-                                                    VerticalAlignment="Stretch"/>
+                                                HorizontalAlignment="Stretch"
+                                                VerticalAlignment="Stretch"/>
                                             </Border>
                                         </ControlTemplate>
                                     </ToggleButton.Template>
@@ -133,41 +160,42 @@
 
                                         <!-- SELECTED TEXT -->
                                         <TextBlock
-                                    x:Name="PART_SelectedText"
-                                    Grid.Column="0"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    Foreground="{TemplateBinding Foreground}"
-                                    Text="{Binding SelectionBoxItem,
-                                                   RelativeSource={RelativeSource TemplatedParent}}"
-                                    TextTrimming="CharacterEllipsis"
-                                    FontSize="13"/>
+                                        x:Name="PART_SelectedText"
+                                        Grid.Column="0"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Foreground="{TemplateBinding Foreground}"
+                                        Text="{Binding SelectionBoxItem,
+                                                       RelativeSource={RelativeSource TemplatedParent}}"
+                                        TextTrimming="CharacterEllipsis"
+                                        FontSize="13"/>
 
                                         <!-- ARROW -->
                                         <Path
-                                    Grid.Column="1"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    Data="M 0 0 L 4 4 L 8 0 Z"
-                                    Fill="#E5E7EB"/>
+                                        Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        Data="M 0 0 L 4 4 L 8 0 Z"
+                                        Fill="#E5E7EB"/>
                                     </Grid>
                                 </ToggleButton>
 
                                 <!-- DROPDOWN POPUP -->
                                 <Popup
-                            Name="Popup"
-                            Placement="Bottom"
-                            IsOpen="{TemplateBinding IsDropDownOpen}"
-                            AllowsTransparency="True"
-                            Focusable="False"
-                            PopupAnimation="Slide">
-                                    <Border Background="#1E1E1E"
-                                    BorderBrush="#2A2A2A"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Padding="2"
-                                    MinWidth="{Binding ActualWidth,
-                                                      RelativeSource={RelativeSource AncestorType=ComboBox}}">
+                                Name="Popup"
+                                Placement="Bottom"
+                                IsOpen="{TemplateBinding IsDropDownOpen}"
+                                AllowsTransparency="True"
+                                Focusable="False"
+                                PopupAnimation="Slide">
+                                    <Border Background="{StaticResource ComboBackgroundBrush}"
+                                        BorderBrush="{StaticResource ComboBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="2"
+                                        MinWidth="{Binding ActualWidth,
+                                                          RelativeSource={RelativeSource AncestorType=ComboBox}}">
+
                                         <ScrollViewer>
                                             <ItemsPresenter/>
                                         </ScrollViewer>
@@ -180,22 +208,22 @@
                             <!-- Hover -->
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="RootBorder"
-                                Property="Background"
-                                Value="#202020"/>
+                                    Property="Background"
+                                    Value="{StaticResource ComboHoverBrush}"/>
                             </Trigger>
 
                             <!-- Open (pressed) -->
                             <Trigger Property="IsDropDownOpen" Value="True">
                                 <Setter TargetName="RootBorder"
-                                Property="Background"
-                                Value="#252525"/>
+                                    Property="Background"
+                                    Value="{StaticResource ComboOpenBrush}"/>
                             </Trigger>
 
                             <!-- Disabled -->
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="RootBorder"
-                                Property="Opacity"
-                                Value="0.5"/>
+                                    Property="Opacity"
+                                    Value="0.5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -214,8 +242,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBoxItem">
                         <Border x:Name="ItemBorder"
-                        Background="{TemplateBinding Background}"
-                        CornerRadius="6">
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="6">
                             <!-- Same 2-column layout as the header -->
                             <Grid Margin="0">
                                 <Grid.ColumnDefinitions>
@@ -223,14 +251,13 @@
                                     <ColumnDefinition Width="24"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Item text in the left column, centered -->
+                                <!-- Item text -->
                                 <ContentPresenter
-                            Grid.Column="0"
-                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                            Margin="0"
-                            RecognizesAccessKey="True"/>
-                                <!-- Right column is just empty, it matches the arrow space -->
+                                Grid.Column="0"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                Margin="0"
+                                RecognizesAccessKey="True"/>
                             </Grid>
                         </Border>
 
@@ -238,15 +265,15 @@
                             <!-- Hover -->
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="ItemBorder"
-                                Property="Background"
-                                Value="#202020"/>
+                                    Property="Background"
+                                    Value="{StaticResource ComboItemHoverBrush}"/>
                             </Trigger>
 
                             <!-- Selected -->
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="ItemBorder"
-                                Property="Background"
-                                Value="#252525"/>
+                                    Property="Background"
+                                    Value="{StaticResource ComboItemSelectedBrush}"/>
                             </Trigger>
 
                             <!-- Disabled -->
@@ -276,17 +303,17 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border"
-                                Background="Transparent"
-                                CornerRadius="4">
+                            Background="Transparent"
+                            CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1E1E1E"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource EuroBlueLight}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#1A1A1A"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource EuroBlueDarker}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -294,7 +321,7 @@
             </Setter>
         </Style>
 
-        <!-- Standard window buttons (minimize / maximize) -->
+        <!-- Window buttons (unchanged logic, only slight hover transparency) -->
         <Style x:Key="WindowButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#E5E7EB"/>
@@ -310,30 +337,29 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <!-- FULL clickable square, always 48x32 -->
                         <Border x:Name="border"
-                        Background="{TemplateBinding Background}"
-                        Width="{TemplateBinding Width}"
-                        Height="{TemplateBinding Height}"
-                        CornerRadius="4">
+                            Background="{TemplateBinding Background}"
+                            Width="{TemplateBinding Width}"
+                            Height="{TemplateBinding Height}"
+                            CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border"
-                                Property="Background"
-                                Value="#1E1E1E"/>
+                                    Property="Background"
+                                    Value="{StaticResource EuroBlueLight}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border"
-                                Property="Background"
-                                Value="#1A1A1A"/>
+                                    Property="Background"
+                                    Value="{StaticResource EuroBlueDarker}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border"
-                                Property="Opacity"
-                                Value="0.5"/>
+                                    Property="Opacity"
+                                    Value="0.5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -341,36 +367,36 @@
             </Setter>
         </Style>
 
-        <!-- Close button -->
+        <!-- Close button (keep red behaviour) -->
         <Style x:Key="CloseButtonStyle"
-       TargetType="Button"
-       BasedOn="{StaticResource WindowButtonStyle}">
+           TargetType="Button"
+           BasedOn="{StaticResource WindowButtonStyle}">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border"
-                        Background="{TemplateBinding Background}"
-                        Width="{TemplateBinding Width}"
-                        Height="{TemplateBinding Height}"
-                        CornerRadius="4">
+                            Background="{TemplateBinding Background}"
+                            Width="{TemplateBinding Width}"
+                            Height="{TemplateBinding Height}"
+                            CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center"
-                                      VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border"
-                                Property="Background"
-                                Value="#DC2626"/>
+                                    Property="Background"
+                                    Value="#DC2626"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border"
-                                Property="Background"
-                                Value="#B91C1C"/>
+                                    Property="Background"
+                                    Value="#B91C1C"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border"
-                                Property="Opacity"
-                                Value="0.5"/>
+                                    Property="Opacity"
+                                    Value="0.5"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -378,8 +404,7 @@
             </Setter>
         </Style>
 
-
-        <!-- Primary (Connect) -->
+        <!-- Primary / Secondary buttons kept as-is (already Eurognosi-ish) -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#004497"/>
             <Setter Property="Foreground" Value="White"/>
@@ -395,9 +420,10 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="#004497" CornerRadius="6">
+                        <Border x:Name="border" Background="#003366" CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
+                                          VerticalAlignment="Center"
+                                              Margin="0,-1,0,1"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -415,15 +441,16 @@
             </Setter>
         </Style>
 
-        <!-- Secondary (Reconnect) -->
         <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-            <Setter Property="Background" Value="#004497"/>
+            <Setter Property="Background" Value="#003366"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
     </Window.Resources>
 
-    <Border Background="#121212">
+
+    <Border Background="{StaticResource WindowBackgroundBrush}">
+
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="44"/>
@@ -438,7 +465,7 @@
 
             <!-- TITLE BAR -->
             <Border Grid.Row="0"
-                    Background="#121212"
+                    Background="{StaticResource TopBarBrush}"
                     Padding="12,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -498,7 +525,7 @@
             <!-- CONTROL BAR -->
             <Border Grid.Row="1"
                     Background="{StaticResource ControlBarBrush}"
-                    BorderBrush="#1E1E1E"
+                     BorderBrush="{StaticResource CardBorderBrush}"
                     BorderThickness="0,0,0,1">
                 <Grid Margin="16,8">
                     <!-- Two rows: labels row & controls row -->
@@ -602,7 +629,7 @@
                     <Grid ClipToBounds="True">
                         <!-- Empty state with EUROGNOSI logo -->
                         <Grid x:Name="EmptyStateGrid"
-          Background="#121212"
+          Background="{StaticResource WindowBackgroundDarkBrush}"
           Visibility="Visible">
                             <Image Source="pack://application:,,,/Assets/EurognosiStar.png"
                Width="160"
@@ -619,7 +646,7 @@
 
                         <!-- Loading overlay (kept on top for when WebView is visible) -->
                         <Grid x:Name="LoadingOverlay"
-          Background="#121212"
+          Background="{StaticResource WindowBackgroundDarkBrush}"
           Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -641,8 +668,8 @@
 
             <!-- STATUS BAR -->
             <Border Grid.Row="3"
-                    Background="#121212"
-                    BorderBrush="#1E1E1E"
+                    Background="{StaticResource WindowStatusBarBrush}"
+                    BorderBrush="{StaticResource CardBorderBrush}"
                     BorderThickness="0,1,0,0">
                 <Grid Margin="12,0">
                     <Grid.ColumnDefinitions>
