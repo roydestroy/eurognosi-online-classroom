@@ -27,36 +27,29 @@
     <Window.Resources>
         <!-- ========== EUROGNOSI BLUE PALETTE ========== -->
         <!-- Main brand blue -->
-        <SolidColorBrush x:Key="EuroBlueBase" Color="#003366"/>
+        <SolidColorBrush x:Key="EuroBlueBase" Color="#00385F"/>
         <!-- Slightly darker (cards / panels) -->
-        <SolidColorBrush x:Key="EuroBlueDark" Color="#003366"/>
+        <SolidColorBrush x:Key="EuroBlueDark" Color="#00385F"/>
         <!-- Even darker (borders / separation) -->
         <SolidColorBrush x:Key="EuroBlueDarker" Color="#002B57"/>
         <!-- Slightly lighter (hover / accents) -->
-        <SolidColorBrush x:Key="EuroBlueLight" Color="#003366"/>
+        <SolidColorBrush x:Key="EuroBlueLight" Color="#00385F"/>
 
         <!-- OLD NAMES, NOW MAPPED TO BLUE SHADES -->
-        <SolidColorBrush x:Key="TopBarBrush" Color="#001527"/>
-        <!-- Title bar -->
-        <SolidColorBrush x:Key="ControlBarBrush" Color="#001527"/>
-        <!-- Combo bar -->
-        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#001527"/>
         <!-- Main card -->
-        <SolidColorBrush x:Key="CardBorderBrush" Color="#003366"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#1E5784"/>
         <!-- Card border -->
 
         <!-- Backgrounds used around the app -->
-        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#001527"/>
-        <SolidColorBrush x:Key="WindowBackgroundDarkBrush" Color="#001527"/>
-        <SolidColorBrush x:Key="WindowStatusBarBrush" Color="#001527"/>
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#002B4D"/>
 
         <!-- ComboBox-specific blues -->
-        <SolidColorBrush x:Key="ComboBackgroundBrush" Color="#003366"/>
+        <SolidColorBrush x:Key="ComboBackgroundBrush" Color="#033C5F"/>
         <SolidColorBrush x:Key="ComboBorderBrush" Color="#003D7A"/>
-        <SolidColorBrush x:Key="ComboHoverBrush" Color="#9cbf49"/>
-        <SolidColorBrush x:Key="ComboOpenBrush" Color="#7A993A"/>
-        <SolidColorBrush x:Key="ComboItemHoverBrush" Color="#7A993A"/>
-        <SolidColorBrush x:Key="ComboItemSelectedBrush" Color="#9cbf49"/>
+        <SolidColorBrush x:Key="ComboHoverBrush" Color="#7A993A"/>
+        <SolidColorBrush x:Key="ComboOpenBrush" Color="#6A852F"/>
+        <SolidColorBrush x:Key="ComboItemHoverBrush" Color="#6A852F"/>
+        <SolidColorBrush x:Key="ComboItemSelectedBrush" Color="#5A7126"/>
 
         <!-- Disconnect (Red) -->
         <Style x:Key="DisconnectButtonStyle" TargetType="Button">
@@ -101,7 +94,7 @@
             </Setter>
         </Style>
 
-        <!-- Dark rounded ComboBox, now BLUE-based -->
+        <!-- ComboBox -->
         <Style TargetType="ComboBox">
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="OverridesDefaultStyle" Value="True"/>
@@ -121,8 +114,7 @@
                         <!-- This is the only real background for the box -->
                         <Border x:Name="RootBorder"
                             Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
+
                             CornerRadius="6">
                             <Grid>
                                 <!-- CLICKABLE SURFACE -->
@@ -420,17 +412,17 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="#003366" CornerRadius="6">
+                        <Border x:Name="border" Background="{StaticResource ComboBackgroundBrush}" CornerRadius="6">
                             <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                               Margin="0,-1,0,1"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#9cbf49"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource ComboHoverBrush}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#7A993A"/>
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource ComboOpenBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Background" Value="#4B5563"/>
@@ -465,7 +457,7 @@
 
             <!-- TITLE BAR -->
             <Border Grid.Row="0"
-                    Background="{StaticResource TopBarBrush}"
+                    Background="{StaticResource WindowBackgroundBrush}"
                     Padding="12,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -524,7 +516,7 @@
 
             <!-- CONTROL BAR -->
             <Border Grid.Row="1"
-                    Background="{StaticResource ControlBarBrush}"
+                    Background="{StaticResource WindowBackgroundBrush}"
                      BorderBrush="{StaticResource CardBorderBrush}"
                     BorderThickness="0,0,0,1">
                 <Grid Margin="16,8">
@@ -603,7 +595,7 @@
                                 Click="HomeButton_Click"
                                 ToolTip="Clear selection"
                                 Margin="0,0,6,0">
-                            <TextBlock Text="&#xE80F;"/>
+                            <TextBlock Text="&#xEA99;"/>
                         </Button>
 
                         <!-- Reload -->
@@ -621,7 +613,7 @@
 
             <!-- MAIN CONTENT -->
             <Grid Grid.Row="2" Margin="16,12,16,12">
-                <Border Background="{StaticResource CardBackgroundBrush}"
+                <Border Background="{StaticResource WindowBackgroundBrush}"
                         BorderBrush="{StaticResource CardBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="0"
@@ -629,11 +621,11 @@
                     <Grid ClipToBounds="True">
                         <!-- Empty state with EUROGNOSI logo -->
                         <Grid x:Name="EmptyStateGrid"
-          Background="{StaticResource WindowBackgroundDarkBrush}"
+          Background="{StaticResource WindowBackgroundBrush}"
           Visibility="Visible">
                             <Image Source="pack://application:,,,/Assets/EurognosiStar.png"
                Width="160"
-               Opacity="0.10"
+               Opacity="0.40"
                HorizontalAlignment="Center"
                VerticalAlignment="Center"
                IsHitTestVisible="False"/>
@@ -646,7 +638,7 @@
 
                         <!-- Loading overlay (kept on top for when WebView is visible) -->
                         <Grid x:Name="LoadingOverlay"
-          Background="{StaticResource WindowBackgroundDarkBrush}"
+          Background="{StaticResource WindowBackgroundBrush}"
           Visibility="Collapsed">
                             <StackPanel HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -668,7 +660,7 @@
 
             <!-- STATUS BAR -->
             <Border Grid.Row="3"
-                    Background="{StaticResource WindowStatusBarBrush}"
+                    Background="{StaticResource WindowBackgroundBrush}"
                     BorderBrush="{StaticResource CardBorderBrush}"
                     BorderThickness="0,1,0,0">
                 <Grid Margin="12,0">
