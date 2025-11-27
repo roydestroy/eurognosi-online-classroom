@@ -127,6 +127,7 @@ namespace DailyDesktopApp
         // --------------------------------------------------------------------
         public MainWindow()
         {
+            CommunicationsDuckingHelper.EnsureDoNothing();
             InitializeComponent();
             UpdateEmptyState(false);
             // Keep maximized window within the working area (above the taskbar)
