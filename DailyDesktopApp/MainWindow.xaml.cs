@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Controls;
+using System.Media;
+using System.Windows.Threading;
 
 namespace DailyDesktopApp
 {
@@ -52,6 +54,8 @@ namespace DailyDesktopApp
 
         private List<OnlineRoom> _rooms = new();
         private string? _currentRoomUrl;
+        private HandRaiseOverlayWindow? _currentHandOverlay;
+        private DateTime _lastOverlayTime = DateTime.MinValue;
         private void SetConnectedState(bool isConnected)
         {
             if (isConnected)
@@ -121,6 +125,81 @@ namespace DailyDesktopApp
             if (!string.IsNullOrWhiteSpace(message))
                 StatusText.Text = message;
         }
+        private void ShowHandRaiseOverlay(string namesText, int count)
+        {
+            // simple throttle: max 1 new overlay every 1.5 seconds
+            if ((DateTime.Now - _lastOverlayTime).TotalSeconds < 1.5)
+                return;
+
+            _lastOverlayTime = DateTime.Now;
+
+            // Close any existing overlay
+            if (_currentHandOverlay != null)
+            {
+                try { _currentHandOverlay.Close(); } catch { }
+                _currentHandOverlay = null;
+            }
+
+            var overlay = new HandRaiseOverlayWindow(namesText, count)
+            {
+                Topmost = true,
+                ShowInTaskbar = false
+            };
+
+            overlay.WindowStartupLocation = WindowStartupLocation.Manual;
+
+            overlay.Loaded += (_, __) =>
+            {
+                var work = SystemParameters.WorkArea;
+                overlay.Left = work.Right - overlay.ActualWidth - 16;
+                overlay.Top = work.Bottom - overlay.ActualHeight - 16;
+            };
+
+            _currentHandOverlay = overlay;
+            overlay.Show();
+
+            // Auto-close after 5 seconds
+            var timer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(5)
+            };
+            timer.Tick += (_, __) =>
+            {
+                timer.Stop();
+                if (_currentHandOverlay == overlay)
+                {
+                    try { overlay.Close(); } catch { }
+                    _currentHandOverlay = null;
+                }
+            };
+            timer.Start();
+        }
+
+        private void HideHandRaiseOverlay()
+        {
+            if (_currentHandOverlay != null)
+            {
+                try { _currentHandOverlay.Close(); } catch { }
+                _currentHandOverlay = null;
+            }
+        }
+
+        private void PlayHandRaiseSound()
+        {
+            try
+            {
+                var uri = new Uri("pack://application:,,,/Sounds/handraise.wav");
+                var stream = Application.GetResourceStream(uri).Stream;
+                var player = new System.Media.SoundPlayer(stream);
+                player.Play();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Sound error: " + ex.Message);
+                SystemSounds.Asterisk.Play();
+            }
+        }
+
 
         // --------------------------------------------------------------------
         // ctor
@@ -182,7 +261,7 @@ namespace DailyDesktopApp
 
                 await DailyWebView.EnsureCoreWebView2Async(null);
                 var core = DailyWebView.CoreWebView2;
-
+                core.WebMessageReceived += CoreWebView2_WebMessageReceived;
                 core.Settings.AreDevToolsEnabled = true;
                 core.Settings.AreDefaultScriptDialogsEnabled = false; // no “changes may not be saved”
 
@@ -195,19 +274,26 @@ namespace DailyDesktopApp
                     `;
                     document.head.appendChild(s);
                 ");
-
                 core.NavigationStarting += (_, __) =>
                 {
                     ShowLoadingOverlay("Preparing your classroom…");
                 };
 
-                core.NavigationCompleted += (_, eArgs) =>
+                core.NavigationCompleted += async (_, eArgs) =>
                 {
                     if (eArgs.IsSuccess)
+                    {
                         HideLoadingOverlay("Connected.");
+
+                        // Inject hand-raise observer script
+                        await InjectHandObserverScriptAsync();
+                    }
                     else
+                    {
                         HideLoadingOverlay($"Navigation failed: {eArgs.WebErrorStatus}");
+                    }
                 };
+
 
                 StatusText.Text = "Browser ready.";
             }
@@ -215,6 +301,163 @@ namespace DailyDesktopApp
             {
                 HideLoadingOverlay();
                 StatusText.Text = $"WebView error: {ex.Message}";
+            }
+        }
+        private async Task InjectHandObserverScriptAsync()
+        {
+            if (DailyWebView?.CoreWebView2 == null)
+                return;
+
+            await DailyWebView.CoreWebView2.ExecuteScriptAsync(@"
+          (function () {
+            if (window.__egHandObserverInstalled) return;
+            window.__egHandObserverInstalled = true;
+
+            function getHandsInfo() {
+              // All hand icons
+              const handDivs = document.querySelectorAll('.hand-status');
+              const infos = [];
+
+              handDivs.forEach(hand => {
+                // Find the tile container
+                const tile = hand.closest('.tile-info');
+                if (!tile) return;
+
+                // Find name element inside the same tile
+                const nameEl = tile.querySelector('.name');
+                let name = null;
+                if (nameEl && nameEl.textContent) {
+                  name = nameEl.textContent.trim();
+                }
+
+                infos.push({ name: name });
+              });
+
+              return infos;
+            }
+
+            let lastSignature = '__none__';
+
+            function notifyHands() {
+              const infos = getHandsInfo() || [];
+              const count = infos.length;
+
+              if (count === 0) {
+                // If we previously had some hands, notify that they are cleared
+                if (lastSignature !== '__none__' &&
+                    window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                  window.chrome.webview.postMessage({
+                    type: 'handRaisedDom',
+                    count: 0,
+                    names: [],
+                    cleared: true,
+                    ts: Date.now()
+                  });
+                }
+                lastSignature = '__none__';
+                return;
+              }
+
+              const names = infos.map(i => i.name).filter(Boolean);
+              const sig = JSON.stringify(names);
+
+              // Avoid resending the same set of names
+              if (sig === lastSignature) return;
+              lastSignature = sig;
+
+              if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                window.chrome.webview.postMessage({
+                  type: 'handRaisedDom',
+                  count: count,
+                  names: names,
+                  cleared: false,
+                  ts: Date.now()
+                });
+              }
+            }
+
+
+            const observer = new MutationObserver(() => {
+              try { notifyHands(); } catch (e) {}
+            });
+
+            observer.observe(document.body, { childList: true, subtree: true });
+
+            // Initial check
+            notifyHands();
+          })();
+        ");
+        }
+        private class HandRaiseMessage
+        {
+            public string? type { get; set; }
+            public int? count { get; set; }
+            public long? ts { get; set; }
+            public string[]? names { get; set; }
+            public bool? cleared { get; set; }
+        }
+
+
+        private void CoreWebView2_WebMessageReceived(
+            object? sender,
+            Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+        {
+            try
+            {
+                string raw = e.WebMessageAsJson;
+
+                Console.WriteLine("JS → .NET message received:");
+                Console.WriteLine(raw);
+
+                // Try to parse it as a hand-raise message
+                var msg = JsonSerializer.Deserialize<HandRaiseMessage>(raw);
+                if (msg == null)
+                    return;
+
+                if (string.Equals(msg.type, "handRaisedDom", StringComparison.OrdinalIgnoreCase))
+                {
+                    var count = msg.count ?? 0;
+
+                    if (count == 0)
+                    {
+                        // All hands are down
+                        Console.WriteLine("Hands cleared.");
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            StatusText.Text = "No raised hands.";
+                            HideHandRaiseOverlay();
+                        });
+
+                        return;
+                    }
+
+                    // Some hands are raised
+                    var namesText = (msg.names != null && msg.names.Length > 0)
+                        ? string.Join(", ", msg.names)
+                        : "Unknown student";
+
+                    Console.WriteLine($"Hands raised: {count} — {namesText}");
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        StatusText.Text = $"Hand raised: {namesText} (total {count})";
+                        ShowHandRaiseOverlay(namesText, count);
+                        PlayHandRaiseSound();
+                    });
+
+                    return;
+                }
+
+                // Other messages (if we add any in future)
+                Dispatcher.Invoke(() =>
+                {
+                    StatusText.Text = $"JS message: {raw}";
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error processing JS message: " + ex.Message);
             }
         }
 
