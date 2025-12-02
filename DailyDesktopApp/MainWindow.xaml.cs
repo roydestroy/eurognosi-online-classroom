@@ -307,8 +307,6 @@ namespace DailyDesktopApp
         {
             CommunicationsDuckingHelper.EnsureDoNothing();
             InitializeComponent();
-            UpdateEmptyState(false);
-
             // 🔊 Load saved mute state
             _handSoundMuted = Properties.Settings.Default.HandRaiseMuted;
             if (HandSoundCheckBox != null)
@@ -316,6 +314,7 @@ namespace DailyDesktopApp
                 // Checked = sound ON
                 HandSoundCheckBox.IsChecked = !_handSoundMuted;
             }
+            UpdateEmptyState(false);
             // Keep maximized window within the working area (above the taskbar)
             MaxHeight = SystemParameters.WorkArea.Height +8;
 
