@@ -660,27 +660,41 @@
 
             <!-- STATUS BAR -->
             <Border Grid.Row="3"
-                    Background="{StaticResource WindowBackgroundBrush}"
-                    BorderBrush="{StaticResource CardBorderBrush}"
-                    BorderThickness="0,1,0,0">
+        Background="{StaticResource WindowBackgroundBrush}"
+        BorderBrush="{StaticResource CardBorderBrush}"
+        BorderThickness="0,1,0,0">
                 <Grid Margin="12,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <Ellipse Width="8"
-                             Height="8"
-                             Fill="#22C55E"
-                             VerticalAlignment="Center"
-                             Margin="0,0,6,0"/>
+                 Height="8"
+                 Fill="#22C55E"
+                 VerticalAlignment="Center"
+                 Margin="0,0,6,0"/>
 
                     <TextBlock x:Name="StatusText"
-                               Grid.Column="1"
-                               Foreground="#9CA3AF"
-                               VerticalAlignment="Center"
-                               FontSize="11"
-                               Text="Select a school and teacher."/>
+                   Grid.Column="1"
+                   Foreground="#9CA3AF"
+                   VerticalAlignment="Center"
+                   FontSize="11"
+                   Text="Select a school and teacher."/>
+
+                    <!-- Hand-raise sound toggle -->
+                    <CheckBox x:Name="HandSoundCheckBox"
+                  Grid.Column="2"
+                  VerticalAlignment="Center"
+                  Margin="8,0,0,0"
+                  Foreground="#9CA3AF"
+                  FontSize="11"
+                  IsChecked="True"
+                  Checked="HandSoundCheckBox_Checked"
+                  Unchecked="HandSoundCheckBox_Unchecked">
+                        Hand-raise sound
+                    </CheckBox>
                 </Grid>
             </Border>
         </Grid>

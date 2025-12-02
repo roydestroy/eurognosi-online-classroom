@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Controls;
 using System.Media;
 using System.Windows.Threading;
+using System.Windows.Media.Animation;   
 
 namespace DailyDesktopApp
 {
@@ -53,9 +54,16 @@ namespace DailyDesktopApp
         }
 
         private List<OnlineRoom> _rooms = new();
+        // Hand-raise sound mute flag
+        private bool _handSoundMuted = false;
         private string? _currentRoomUrl;
-        private HandRaiseOverlayWindow? _currentHandOverlay;
+        // Toast-style hand raise overlays (stacked)
+        private readonly List<HandRaiseOverlayWindow> _handOverlays = new();
+        // For message deduplication (same snackbar text repeated)
+        private readonly Dictionary<string, DateTime> _recentHandMessages = new();
         private DateTime _lastOverlayTime = DateTime.MinValue;
+        private static readonly TimeSpan HandMessageDedupWindow = TimeSpan.FromSeconds(5);
+
         private void SetConnectedState(bool isConnected)
         {
             if (isConnected)
@@ -82,6 +90,59 @@ namespace DailyDesktopApp
             if (!string.IsNullOrWhiteSpace(message))
                 StatusText.Text = message;
         }
+        private void RepositionHandOverlays(HandRaiseOverlayWindow? animatedToast = null)
+        {
+            if (_handOverlays.Count == 0)
+                return;
+
+            var work = SystemParameters.WorkArea;
+            const double margin = 16;
+
+            double currentBottom = work.Bottom - margin;
+
+            // newest at bottom
+            for (int i = _handOverlays.Count - 1; i >= 0; i--)
+            {
+                var toast = _handOverlays[i];
+                if (!toast.IsVisible) continue;
+
+                if (toast.ActualWidth <= 0 || toast.ActualHeight <= 0)
+                    toast.UpdateLayout();
+
+                double targetLeft = work.Right - toast.ActualWidth - margin;
+                double targetTop = currentBottom - toast.ActualHeight;
+
+                if (toast == animatedToast)
+                {
+                    // NEW toast: start below the screen and slide up
+                    toast.Left = targetLeft;
+
+                    double fromTop = work.Bottom + toast.ActualHeight;
+
+                    var slide = new DoubleAnimation
+                    {
+                        From = fromTop,
+                        To = targetTop,
+                        Duration = TimeSpan.FromMilliseconds(200),
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    toast.BeginAnimation(Window.TopProperty, slide);
+                }
+                else
+                {
+                    // Existing toasts: snap into position
+                    toast.BeginAnimation(Window.TopProperty, null);
+                    toast.Left = targetLeft;
+                    toast.Top = targetTop;
+                }
+
+                currentBottom = targetTop - margin;
+            }
+        }
+
+
+
 
         private void RestoreDropdownSelectionFromSettings()
         {
@@ -125,67 +186,90 @@ namespace DailyDesktopApp
             if (!string.IsNullOrWhiteSpace(message))
                 StatusText.Text = message;
         }
-        private void ShowHandRaiseOverlay(string namesText, int count)
+        private bool ShowHandRaiseOverlay(string message)
         {
-            // simple throttle: max 1 new overlay every 1.5 seconds
-            if ((DateTime.Now - _lastOverlayTime).TotalSeconds < 1.5)
-                return;
+            var now = DateTime.Now;
 
-            _lastOverlayTime = DateTime.Now;
-
-            // Close any existing overlay
-            if (_currentHandOverlay != null)
+            // 🔁 DEDUP: if we showed the exact same message recently, skip
+            if (_recentHandMessages.TryGetValue(message, out var lastShown) &&
+                (now - lastShown) < HandMessageDedupWindow)
             {
-                try { _currentHandOverlay.Close(); } catch { }
-                _currentHandOverlay = null;
+                // Same text within 5 seconds → ignore
+                return false;
+            }
+            _recentHandMessages[message] = now;
+
+            // Clean up very old entries occasionally
+            foreach (var key in _recentHandMessages.Keys.ToList())
+            {
+                if ((now - _recentHandMessages[key]) > HandMessageDedupWindow * 2)
+                {
+                    _recentHandMessages.Remove(key);
+                }
             }
 
-            var overlay = new HandRaiseOverlayWindow(namesText, count)
+            // ---- stacked toast logic ----
+            const int maxToasts = 5;
+            if (_handOverlays.Count >= maxToasts)
+            {
+                var oldest = _handOverlays[0];
+                try { oldest.FadeOutAndClose(); } catch { }
+                _handOverlays.RemoveAt(0);
+            }
+
+            var overlay = new HandRaiseOverlayWindow(message)
             {
                 Topmost = true,
-                ShowInTaskbar = false
+                ShowInTaskbar = false,
+                WindowStartupLocation = WindowStartupLocation.Manual
             };
 
-            overlay.WindowStartupLocation = WindowStartupLocation.Manual;
+            overlay.Loaded += (_, __) => RepositionHandOverlays(overlay);
 
-            overlay.Loaded += (_, __) =>
+            overlay.Closed += (_, __) =>
             {
-                var work = SystemParameters.WorkArea;
-                overlay.Left = work.Right - overlay.ActualWidth - 16;
-                overlay.Top = work.Bottom - overlay.ActualHeight - 16;
+                _handOverlays.Remove(overlay);
+                RepositionHandOverlays(null);
             };
 
-            _currentHandOverlay = overlay;
+            _handOverlays.Add(overlay);
             overlay.Show();
 
-            // Auto-close after 5 seconds
-            var timer = new DispatcherTimer
+            // Auto-dismiss after 5 seconds
+            var timer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(5)
             };
             timer.Tick += (_, __) =>
             {
                 timer.Stop();
-                if (_currentHandOverlay == overlay)
-                {
-                    try { overlay.Close(); } catch { }
-                    _currentHandOverlay = null;
-                }
+                try { overlay.FadeOutAndClose(); } catch { }
             };
             timer.Start();
+
+            return true; // ✅ we actually created a toast
         }
+
+
+
+
 
         private void HideHandRaiseOverlay()
         {
-            if (_currentHandOverlay != null)
+            foreach (var toast in _handOverlays.ToArray())
             {
-                try { _currentHandOverlay.Close(); } catch { }
-                _currentHandOverlay = null;
+                try { toast.FadeOutAndClose(); } catch { }
             }
+            _handOverlays.Clear();
         }
+
+
 
         private void PlayHandRaiseSound()
         {
+            if (_handSoundMuted)
+                return;
+
             try
             {
                 var uri = new Uri("pack://application:,,,/Sounds/handraise.wav");
@@ -199,16 +283,39 @@ namespace DailyDesktopApp
                 SystemSounds.Asterisk.Play();
             }
         }
+        private void HandSoundCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            // Checked = sound ON
+            _handSoundMuted = false;
+            Properties.Settings.Default.HandRaiseMuted = false;
+            Properties.Settings.Default.Save();
+        }
+
+        private void HandSoundCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // Unchecked = sound OFF
+            _handSoundMuted = true;
+            Properties.Settings.Default.HandRaiseMuted = true;
+            Properties.Settings.Default.Save();
+        }
 
 
         // --------------------------------------------------------------------
-        // ctor
+        // Constructor
         // --------------------------------------------------------------------
         public MainWindow()
         {
             CommunicationsDuckingHelper.EnsureDoNothing();
             InitializeComponent();
             UpdateEmptyState(false);
+
+            // 🔊 Load saved mute state
+            _handSoundMuted = Properties.Settings.Default.HandRaiseMuted;
+            if (HandSoundCheckBox != null)
+            {
+                // Checked = sound ON
+                HandSoundCheckBox.IsChecked = !_handSoundMuted;
+            }
             // Keep maximized window within the working area (above the taskbar)
             MaxHeight = SystemParameters.WorkArea.Height +8;
 
@@ -309,93 +416,85 @@ namespace DailyDesktopApp
                 return;
 
             await DailyWebView.CoreWebView2.ExecuteScriptAsync(@"
-          (function () {
-            if (window.__egHandObserverInstalled) return;
-            window.__egHandObserverInstalled = true;
+        (function () {
+          // Install only once
+          if (window.__egHandSnackbarObserverInstalled) return;
+          window.__egHandSnackbarObserverInstalled = true;
 
-            function getHandsInfo() {
-              // All hand icons
-              const handDivs = document.querySelectorAll('.hand-status');
-              const infos = [];
-
-              handDivs.forEach(hand => {
-                // Find the tile container
-                const tile = hand.closest('.tile-info');
-                if (!tile) return;
-
-                // Find name element inside the same tile
-                const nameEl = tile.querySelector('.name');
-                let name = null;
-                if (nameEl && nameEl.textContent) {
-                  name = nameEl.textContent.trim();
-                }
-
-                infos.push({ name: name });
+          function notifySnackbar(text) {
+            if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+              window.chrome.webview.postMessage({
+                type: 'handSnackbar',
+                text: text,
+                ts: Date.now()
               });
+            }
+          }
 
-              return infos;
+          let lastText = '';
+          let lastTs = 0;
+
+          function processSnackbar() {
+            const presenter = document.querySelector('.snackbar-presenter');
+            if (!presenter) return;
+
+            const el = presenter.querySelector('.snackbar.info .text, .snackbar.info.visible .text');
+            if (!el || !el.textContent) return;
+
+            const text = el.textContent.trim();
+            if (!text) return;
+
+            // Only care about hand-raise messages
+            if (text.indexOf('raised their hand') === -1 &&
+                text.indexOf('raised their hands') === -1) {
+              return;
             }
 
-            let lastSignature = '__none__';
+            const now = Date.now();
 
-            function notifyHands() {
-              const infos = getHandsInfo() || [];
-              const count = infos.length;
-
-              if (count === 0) {
-                // If we previously had some hands, notify that they are cleared
-                if (lastSignature !== '__none__' &&
-                    window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
-                  window.chrome.webview.postMessage({
-                    type: 'handRaisedDom',
-                    count: 0,
-                    names: [],
-                    cleared: true,
-                    ts: Date.now()
-                  });
-                }
-                lastSignature = '__none__';
-                return;
-              }
-
-              const names = infos.map(i => i.name).filter(Boolean);
-              const sig = JSON.stringify(names);
-
-              // Avoid resending the same set of names
-              if (sig === lastSignature) return;
-              lastSignature = sig;
-
-              if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
-                window.chrome.webview.postMessage({
-                  type: 'handRaisedDom',
-                  count: count,
-                  names: names,
-                  cleared: false,
-                  ts: Date.now()
-                });
-              }
+            // Collapse rapid duplicate mutations for the same snackbar
+            if (text === lastText && (now - lastTs) < 300) {
+              return;
             }
 
+            lastText = text;
+            lastTs = now;
 
-            const observer = new MutationObserver(() => {
-              try { notifyHands(); } catch (e) {}
-            });
+            notifySnackbar(text);
+          }
 
-            observer.observe(document.body, { childList: true, subtree: true });
+          const observer = new MutationObserver(function () {
+            try { processSnackbar(); } catch (e) { }
+          });
 
-            // Initial check
-            notifyHands();
-          })();
+          observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+          });
+
+          // Initial check
+          processSnackbar();
+        })();
         ");
         }
+
+
+
+
+
+
+
+
         private class HandRaiseMessage
         {
             public string? type { get; set; }
-            public int? count { get; set; }
+            public string? text { get; set; }
             public long? ts { get; set; }
-            public string[]? names { get; set; }
-            public bool? cleared { get; set; }
         }
+
+
+
 
 
         private void CoreWebView2_WebMessageReceived(
@@ -409,47 +508,35 @@ namespace DailyDesktopApp
                 Console.WriteLine("JS → .NET message received:");
                 Console.WriteLine(raw);
 
-                // Try to parse it as a hand-raise message
                 var msg = JsonSerializer.Deserialize<HandRaiseMessage>(raw);
                 if (msg == null)
                     return;
 
-                if (string.Equals(msg.type, "handRaisedDom", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(msg.type, "handSnackbar", StringComparison.OrdinalIgnoreCase))
                 {
-                    var count = msg.count ?? 0;
-
-                    if (count == 0)
+                    var text = msg.text;
+                    if (string.IsNullOrWhiteSpace(text))
                     {
-                        // All hands are down
-                        Console.WriteLine("Hands cleared.");
-
-                        Dispatcher.Invoke(() =>
-                        {
-                            StatusText.Text = "No raised hands.";
-                            HideHandRaiseOverlay();
-                        });
-
-                        return;
+                        text = "A student raised their hand.";
                     }
-
-                    // Some hands are raised
-                    var namesText = (msg.names != null && msg.names.Length > 0)
-                        ? string.Join(", ", msg.names)
-                        : "Unknown student";
-
-                    Console.WriteLine($"Hands raised: {count} — {namesText}");
 
                     Dispatcher.Invoke(() =>
                     {
-                        StatusText.Text = $"Hand raised: {namesText} (total {count})";
-                        ShowHandRaiseOverlay(namesText, count);
-                        PlayHandRaiseSound();
+                        // Mirror Daily's own wording
+                        StatusText.Text = text;
+
+                        // 🔊 Only play sound if we REALLY showed a new toast
+                        if (ShowHandRaiseOverlay(text))
+                        {
+                            PlayHandRaiseSound();
+                        }
                     });
 
                     return;
                 }
 
-                // Other messages (if we add any in future)
+
+                // Other message types (if any in future)
                 Dispatcher.Invoke(() =>
                 {
                     StatusText.Text = $"JS message: {raw}";
@@ -460,6 +547,9 @@ namespace DailyDesktopApp
                 Console.WriteLine("Error processing JS message: " + ex.Message);
             }
         }
+
+
+
 
         // --------------------------------------------------------------------
         // Load rooms from Wix

@@ -106,5 +106,17 @@ namespace DailyDesktopApp.Properties {
                 this["LastRoomId"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool HandRaiseMuted {
+            get {
+                return ((bool)(this["HandRaiseMuted"]));
+            }
+            set {
+                this["HandRaiseMuted"] = value;
+            }
+        }
     }
 }
