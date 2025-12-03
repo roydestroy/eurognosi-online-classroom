@@ -31,11 +31,8 @@ namespace DailyDesktopApp
             InitializeComponent();
 
             DetailsText.Text = message.Trim();
-
-            // Auto-size to content
             this.SizeToContent = SizeToContent.WidthAndHeight;
         }
-
 
         protected override void OnSourceInitialized(EventArgs e)
         {

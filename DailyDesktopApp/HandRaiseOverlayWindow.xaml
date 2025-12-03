@@ -11,15 +11,25 @@
         Height="Auto">
 
     <Border Background="#00385F"
-            CornerRadius="8"
-            Padding="14,10"
-            SnapsToDevicePixels="True">
-        <TextBlock x:Name="DetailsText"
+        CornerRadius="8"
+        Padding="14,8"
+        SnapsToDevicePixels="True">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <!-- Emoji as image -->
+            <Image Source="pack://application:,,,/Assets/raisedhand.png"
+               Width="18"
+               Height="18"
+               Margin="0,0,6,0"
+               VerticalAlignment="Center"
+               RenderOptions.BitmapScalingMode="HighQuality" />
+
+            <!-- Message text -->
+            <TextBlock x:Name="DetailsText"
                    Foreground="White"
                    FontSize="14"
                    FontWeight="SemiBold"
                    TextWrapping="Wrap"
                    VerticalAlignment="Center" />
+        </StackPanel>
     </Border>
-
 </Window>
