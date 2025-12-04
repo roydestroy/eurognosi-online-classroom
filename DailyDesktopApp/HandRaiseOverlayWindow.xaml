@@ -7,29 +7,31 @@
         Background="Transparent"
         ShowInTaskbar="False"
         Topmost="True"
-        Width="Auto"
-        Height="Auto">
+        SizeToContent="WidthAndHeight">
 
     <Border Background="#00385F"
-        CornerRadius="8"
-        Padding="14,8"
-        SnapsToDevicePixels="True">
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <!-- Emoji as image -->
-            <Image Source="pack://application:,,,/Assets/raisedhand.png"
-               Width="18"
-               Height="18"
-               Margin="0,0,6,0"
-               VerticalAlignment="Center"
-               RenderOptions.BitmapScalingMode="HighQuality" />
+            CornerRadius="8"
+            Padding="14,8"
+            SnapsToDevicePixels="True">
+        <StackPanel Orientation="Horizontal"
+                    VerticalAlignment="Center">
+            <!-- Emoji image (can be hidden for chat) -->
+            <Image x:Name="EmojiImage"
+                   Source="pack://application:,,,/Assets/raisedhand.png"
+                   Width="18"
+                   Height="18"
+                   Margin="0,0,6,0"
+                   VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality" />
 
-            <!-- Message text -->
+            <!-- Text, will support multi-line -->
             <TextBlock x:Name="DetailsText"
-                   Foreground="White"
-                   FontSize="14"
-                   FontWeight="SemiBold"
-                   TextWrapping="Wrap"
-                   VerticalAlignment="Center" />
+                       Foreground="White"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap"
+                       MaxWidth="420"
+                       VerticalAlignment="Center" />
         </StackPanel>
     </Border>
 </Window>

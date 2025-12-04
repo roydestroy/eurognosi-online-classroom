@@ -692,7 +692,7 @@
                   FontSize="11"
                   Checked="HandSoundCheckBox_Checked"
                   Unchecked="HandSoundCheckBox_Unchecked">
-                        Hand-raise sound
+                        Notification sound
                     </CheckBox>
                 </Grid>
             </Border>

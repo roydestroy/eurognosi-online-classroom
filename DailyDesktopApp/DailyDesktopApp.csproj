@@ -24,6 +24,13 @@
 	  <None Remove="Assets\eurognosistar.png" />
 	  <None Remove="Assets\raisedhand.png" />
 	  <None Remove="Sounds\handraise.wav" />
+	  <None Remove="Sounds\participant-left.wav" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Resource Include="Sounds\participant-left.wav">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	</ItemGroup>
 
 	<ItemGroup>

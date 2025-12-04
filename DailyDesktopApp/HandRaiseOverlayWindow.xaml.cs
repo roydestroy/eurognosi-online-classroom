@@ -2,15 +2,16 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
-using System.Windows.Media.Animation;   // 👈 add this
+using System.Windows.Media.Animation;
 
 namespace DailyDesktopApp
 {
     public partial class HandRaiseOverlayWindow : Window
     {
+        // Win32 constants
         private const int GWL_EXSTYLE = -20;
         private const int WS_EX_TRANSPARENT = 0x00000020;
-        private const int WS_EX_TOOLWINDOW = 0x00000080;
+        private const int WS_EX_TOOLWINDOW = 0x00000080; // hide from Alt+Tab
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
@@ -20,18 +21,28 @@ namespace DailyDesktopApp
 
         private bool _isClosing = false;
 
-        public string Message
+        // Default: show emoji (hand-raise)
+        public HandRaiseOverlayWindow(string message)
+            : this(message, true)
         {
-            get => DetailsText.Text;
-            set => DetailsText.Text = value;
         }
 
-        public HandRaiseOverlayWindow(string message)
+        // Generic ctor: can hide emoji for chat
+        public HandRaiseOverlayWindow(string message, bool showEmoji)
         {
             InitializeComponent();
 
-            DetailsText.Text = message.Trim();
-            this.SizeToContent = SizeToContent.WidthAndHeight;
+            // start transparent so FadeIn looks smooth
+            Opacity = 0;
+
+            DetailsText.Text = message?.Trim() ?? string.Empty;
+            EmojiImage.Visibility = showEmoji ? Visibility.Visible : Visibility.Collapsed;
+
+            // also set in XAML, but safe here too
+            SizeToContent = SizeToContent.WidthAndHeight;
+
+            // run fade-in once the window is properly laid out
+            Loaded += (_, __) => FadeIn();
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -43,6 +54,8 @@ namespace DailyDesktopApp
         private void MakeClickThrough()
         {
             var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
             int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
             exStyle |= WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW;
             SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
@@ -50,13 +63,26 @@ namespace DailyDesktopApp
 
         private void FadeIn()
         {
-            var anim = new DoubleAnimation
+            try
             {
-                From = 0,
-                To = 1,
-                Duration = TimeSpan.FromMilliseconds(200)
-            };
-            BeginAnimation(Window.OpacityProperty, anim);
+                var anim = new DoubleAnimation
+                {
+                    From = 0,
+                    To = 1,
+                    Duration = TimeSpan.FromMilliseconds(200),
+                    FillBehavior = FillBehavior.Stop
+                };
+
+                // when animation finishes, leave opacity at 1
+                anim.Completed += (_, __) => Opacity = 1;
+
+                BeginAnimation(Window.OpacityProperty, anim);
+            }
+            catch
+            {
+                // if anything goes wrong, just jump to fully visible
+                Opacity = 1;
+            }
         }
 
         public void FadeOutAndClose()
@@ -64,17 +90,27 @@ namespace DailyDesktopApp
             if (_isClosing) return;
             _isClosing = true;
 
-            var anim = new DoubleAnimation
+            try
             {
-                From = Opacity,
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(200)
-            };
-            anim.Completed += (_, __) =>
+                var anim = new DoubleAnimation
+                {
+                    From = Opacity,
+                    To = 0,
+                    Duration = TimeSpan.FromMilliseconds(200),
+                    FillBehavior = FillBehavior.Stop
+                };
+
+                anim.Completed += (_, __) =>
+                {
+                    try { Close(); } catch { }
+                };
+
+                BeginAnimation(Window.OpacityProperty, anim);
+            }
+            catch
             {
                 try { Close(); } catch { }
-            };
-            BeginAnimation(Window.OpacityProperty, anim);
+            }
         }
     }
 }

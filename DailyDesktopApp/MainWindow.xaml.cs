@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Media;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Controls;
-using System.Media;
-using System.Windows.Threading;
+using System.Windows.Input;
 using System.Windows.Media.Animation;   
+using System.Windows.Threading;
 
 namespace DailyDesktopApp
 {
@@ -58,11 +58,11 @@ namespace DailyDesktopApp
         private bool _handSoundMuted = false;
         private string? _currentRoomUrl;
         // Toast-style hand raise overlays (stacked)
-        private readonly List<HandRaiseOverlayWindow> _handOverlays = new();
+        private readonly List<HandRaiseOverlayWindow> _toastWindows = new();
         // For message deduplication (same snackbar text repeated)
-        private readonly Dictionary<string, DateTime> _recentHandMessages = new();
-        private DateTime _lastOverlayTime = DateTime.MinValue;
-        private static readonly TimeSpan HandMessageDedupWindow = TimeSpan.FromSeconds(5);
+        private readonly Dictionary<string, DateTime> _recentToastMessages = new();
+        private DateTime _lastToastTime = DateTime.MinValue;
+        private static readonly TimeSpan ToastDedupWindow = TimeSpan.FromSeconds(5);
 
         private void SetConnectedState(bool isConnected)
         {
@@ -90,59 +90,50 @@ namespace DailyDesktopApp
             if (!string.IsNullOrWhiteSpace(message))
                 StatusText.Text = message;
         }
-        private void RepositionHandOverlays(HandRaiseOverlayWindow? animatedToast = null)
+        private void RepositionToasts(HandRaiseOverlayWindow? newlyAdded)
         {
-            if (_handOverlays.Count == 0)
+            if (_toastWindows.Count == 0)
                 return;
 
-            var work = SystemParameters.WorkArea;
-            const double margin = 16;
+            double margin = 12;
+            double bottom = SystemParameters.WorkArea.Bottom - margin;
+            double right = SystemParameters.WorkArea.Right - margin;
 
-            double currentBottom = work.Bottom - margin;
-
-            // newest at bottom
-            for (int i = _handOverlays.Count - 1; i >= 0; i--)
+            // stack from bottom-right upwards
+            foreach (var toast in _toastWindows.AsEnumerable().Reverse())
             {
-                var toast = _handOverlays[i];
-                if (!toast.IsVisible) continue;
+                toast.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double height = toast.DesiredSize.Height;
 
-                if (toast.ActualWidth <= 0 || toast.ActualHeight <= 0)
-                    toast.UpdateLayout();
+                double targetTop = bottom - height;
+                double targetLeft = right - toast.DesiredSize.Width;
 
-                double targetLeft = work.Right - toast.ActualWidth - margin;
-                double targetTop = currentBottom - toast.ActualHeight;
+                toast.Left = targetLeft;
 
-                if (toast == animatedToast)
+                if (toast == newlyAdded)
                 {
-                    // NEW toast: start below the screen and slide up
-                    toast.Left = targetLeft;
-
-                    double fromTop = work.Bottom + toast.ActualHeight;
-
-                    var slide = new DoubleAnimation
+                    // slide up from just below targetTop
+                    var anim = new System.Windows.Media.Animation.DoubleAnimation
                     {
-                        From = fromTop,
+                        From = targetTop + 30,
                         To = targetTop,
-                        Duration = TimeSpan.FromMilliseconds(200),
-                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                        Duration = TimeSpan.FromMilliseconds(180),
+                        EasingFunction = new System.Windows.Media.Animation.QuadraticEase
+                        {
+                            EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                        }
                     };
-
-                    toast.BeginAnimation(Window.TopProperty, slide);
+                    toast.BeginAnimation(Window.TopProperty, anim);
                 }
                 else
                 {
-                    // Existing toasts: snap into position
-                    toast.BeginAnimation(Window.TopProperty, null);
-                    toast.Left = targetLeft;
+                    toast.BeginAnimation(Window.TopProperty, null); // stop anim
                     toast.Top = targetTop;
                 }
 
-                currentBottom = targetTop - margin;
+                bottom = targetTop - margin;
             }
         }
-
-
-
 
         private void RestoreDropdownSelectionFromSettings()
         {
@@ -152,20 +143,15 @@ namespace DailyDesktopApp
             if (string.IsNullOrWhiteSpace(lastVenue) || string.IsNullOrWhiteSpace(lastRoomId))
                 return;
 
-            if (_rooms == null || _rooms.Count == 0)
+            if (_rooms.Count == 0)
                 return;
 
             // Set the School combo – this will also repopulate TeacherComboBox via SelectionChanged
-            if (VenueComboBox.ItemsSource != null &&
-                VenueComboBox.Items.Contains(lastVenue))
+            if (!string.IsNullOrWhiteSpace(lastVenue))
             {
                 VenueComboBox.SelectedItem = lastVenue;
             }
-            else
-            {
-                // if binding is list<string>, safer to force-set:
-                VenueComboBox.SelectedItem = lastVenue;
-            }
+
 
             // Now try to select the correct teacher
             var teacherList = TeacherComboBox.ItemsSource as IEnumerable<OnlineRoom>;
@@ -186,56 +172,62 @@ namespace DailyDesktopApp
             if (!string.IsNullOrWhiteSpace(message))
                 StatusText.Text = message;
         }
-        private bool ShowHandRaiseOverlay(string message)
+        // return bool as before: true = actually showed a new toast
+        /// <summary>
+        /// Shows a toast. Returns true if a *new* toast was actually shown
+        /// (used to decide if we play a sound).
+        /// </summary>
+        private bool ShowToast(string message, bool showEmoji)
         {
             var now = DateTime.Now;
 
-            // 🔁 DEDUP: if we showed the exact same message recently, skip
-            if (_recentHandMessages.TryGetValue(message, out var lastShown) &&
-                (now - lastShown) < HandMessageDedupWindow)
+            // Very small anti-spam throttle for DOM spam
+            if ((now - _lastToastTime).TotalMilliseconds < 120)
+                return false;
+
+            _lastToastTime = now;
+
+            // Dedup: same text within window → ignore
+            if (_recentToastMessages.TryGetValue(message, out var lastShown) &&
+                (now - lastShown) < ToastDedupWindow)
             {
-                // Same text within 5 seconds → ignore
                 return false;
             }
-            _recentHandMessages[message] = now;
+            _recentToastMessages[message] = now;
 
-            // Clean up very old entries occasionally
-            foreach (var key in _recentHandMessages.Keys.ToList())
+            // Clean up old entries
+            foreach (var key in _recentToastMessages.Keys.ToList())
             {
-                if ((now - _recentHandMessages[key]) > HandMessageDedupWindow * 2)
-                {
-                    _recentHandMessages.Remove(key);
-                }
+                if ((now - _recentToastMessages[key]) > ToastDedupWindow * 2)
+                    _recentToastMessages.Remove(key);
             }
 
-            // ---- stacked toast logic ----
             const int maxToasts = 5;
-            if (_handOverlays.Count >= maxToasts)
+            if (_toastWindows.Count >= maxToasts)
             {
-                var oldest = _handOverlays[0];
+                var oldest = _toastWindows[0];
                 try { oldest.FadeOutAndClose(); } catch { }
-                _handOverlays.RemoveAt(0);
+                _toastWindows.RemoveAt(0);
             }
 
-            var overlay = new HandRaiseOverlayWindow(message)
+            var toast = new HandRaiseOverlayWindow(message, showEmoji)
             {
                 Topmost = true,
                 ShowInTaskbar = false,
                 WindowStartupLocation = WindowStartupLocation.Manual
             };
 
-            overlay.Loaded += (_, __) => RepositionHandOverlays(overlay);
-
-            overlay.Closed += (_, __) =>
+            toast.Loaded += (_, __) => RepositionToasts(toast);
+            toast.Closed += (_, __) =>
             {
-                _handOverlays.Remove(overlay);
-                RepositionHandOverlays(null);
+                _toastWindows.Remove(toast);
+                RepositionToasts(null);
             };
 
-            _handOverlays.Add(overlay);
-            overlay.Show();
+            _toastWindows.Add(toast);
+            toast.Show();
 
-            // Auto-dismiss after 5 seconds
+            // Auto-dismiss
             var timer = new System.Windows.Threading.DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(5)
@@ -243,27 +235,42 @@ namespace DailyDesktopApp
             timer.Tick += (_, __) =>
             {
                 timer.Stop();
-                try { overlay.FadeOutAndClose(); } catch { }
+                try { toast.FadeOutAndClose(); } catch { }
             };
             timer.Start();
 
-            return true; // ✅ we actually created a toast
+            return true;
         }
 
 
 
-
-
-        private void HideHandRaiseOverlay()
+        private void HideAllToasts()
         {
-            foreach (var toast in _handOverlays.ToArray())
+            foreach (var toast in _toastWindows.ToArray())
             {
                 try { toast.FadeOutAndClose(); } catch { }
             }
-            _handOverlays.Clear();
+            _toastWindows.Clear();
         }
 
+        private void PlayParticipantLeftSound()
+        {
+            if (_handSoundMuted)
+                return;
 
+            try
+            {
+                var uri = new Uri("pack://application:,,,/Sounds/participant-left.wav");
+                var stream = Application.GetResourceStream(uri).Stream;
+                var player = new System.Media.SoundPlayer(stream);
+                player.Play();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Sound error: " + ex.Message);
+                SystemSounds.Asterisk.Play();
+            }
+        }
 
         private void PlayHandRaiseSound()
         {
@@ -393,6 +400,7 @@ namespace DailyDesktopApp
 
                         // Inject hand-raise observer script
                         await InjectHandObserverScriptAsync();
+                        await InjectParticipantCountObserverAsync();
                     }
                     else
                     {
@@ -417,49 +425,81 @@ namespace DailyDesktopApp
             await DailyWebView.CoreWebView2.ExecuteScriptAsync(@"
         (function () {
           // Install only once
-          if (window.__egHandSnackbarObserverInstalled) return;
-          window.__egHandSnackbarObserverInstalled = true;
+          if (window.__egSnackbarObserverInstalled) return;
+          window.__egSnackbarObserverInstalled = true;
 
-          function notifySnackbar(text) {
-            if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
-              window.chrome.webview.postMessage({
-                type: 'handSnackbar',
-                text: text,
-                ts: Date.now()
-              });
-            }
+          function postToHost(payload) {
+            try {
+              if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                window.chrome.webview.postMessage(payload);
+              }
+            } catch (e) {}
           }
 
-          let lastText = '';
-          let lastTs = 0;
+          let lastHandText = '';
+          let lastHandTs   = 0;
+          let lastChatSig  = '';
 
           function processSnackbar() {
             const presenter = document.querySelector('.snackbar-presenter');
             if (!presenter) return;
 
-            const el = presenter.querySelector('.snackbar.info .text, .snackbar.info.visible .text');
-            if (!el || !el.textContent) return;
+            // ANY visible snackbar (hand, chat, etc.)
+            const snackbar = presenter.querySelector('.snackbar.success.visible, .snackbar.info.visible');
+            if (!snackbar) return;
 
-            const text = el.textContent.trim();
-            if (!text) return;
+            const textContainer = snackbar.querySelector('.text');
+            if (!textContainer) return;
 
-            // Only care about hand-raise messages
-            if (text.indexOf('raised their hand') === -1 &&
-                text.indexOf('raised their hands') === -1) {
-              return;
-            }
+            const fullText = (textContainer.textContent || '').trim();
+            if (!fullText) return;
 
             const now = Date.now();
 
-            // Collapse rapid duplicate mutations for the same snackbar
-            if (text === lastText && (now - lastTs) < 300) {
+            // -------- HAND RAISE / LOWER --------
+            if (fullText.includes('raised their hand') || fullText.includes('raised their hands')) {
+
+              // Collapse DOM noise (same text a few times quickly)
+              if (fullText === lastHandText && (now - lastHandTs) < 300) {
+                return;
+              }
+              lastHandText = fullText;
+              lastHandTs   = now;
+
+              postToHost({
+                type: 'handSnackbar',
+                text: fullText,
+                ts: now
+              });
               return;
             }
 
-            lastText = text;
-            lastTs = now;
+            // -------- CHAT MESSAGE SNACKBAR --------
+            // Structure is usually:
+            // <div class=""text"">
+            //   <strong>NAME</strong>
+            //   <span>MESSAGE</span>
+            // </div>
+            const strong = textContainer.querySelector('strong');
+            const span   = textContainer.querySelector('span');
 
-            notifySnackbar(text);
+            const author = strong ? (strong.textContent || '').trim() : 'Student';
+            const msg    = span   ? (span.textContent   || '').trim() : '';
+
+            if (!msg) return;
+
+            const sig = author + '|' + msg;
+            if (sig === lastChatSig) {
+              return;  // avoid duplicates for the same popup
+            }
+            lastChatSig = sig;
+
+            postToHost({
+              type: 'chatMessage',
+              from: author,
+              text: msg,
+              ts: now
+            });
           }
 
           const observer = new MutationObserver(function () {
@@ -478,22 +518,107 @@ namespace DailyDesktopApp
         ");
         }
 
-
-
-
-
-
-
-
-        private class HandRaiseMessage
+        private async Task InjectParticipantCountObserverAsync()
         {
-            public string? type { get; set; }
-            public string? text { get; set; }
-            public long? ts { get; set; }
+            if (DailyWebView?.CoreWebView2 == null)
+                return;
+
+            await DailyWebView.CoreWebView2.ExecuteScriptAsync(@"
+            (function () {
+              if (window.__egParticipantCountObserverInstalled) return;
+              window.__egParticipantCountObserverInstalled = true;
+
+              function post(msg) {
+                if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                  window.chrome.webview.postMessage(msg);
+                }
+              }
+
+              let lastCount = -1;
+
+              function readCount() {
+                // Look through p/div/span for either 'people in call' or 'Waiting for others to join'
+                const nodes = Array.from(document.querySelectorAll('p, div, span'));
+
+                // Case 1: 'X people in call'
+                const peopleEl = nodes.find(el => el.textContent && el.textContent.includes('people in call'));
+                if (peopleEl) {
+                  const match = peopleEl.textContent.match(/(\d+)/);
+                  if (match) {
+                    return parseInt(match[1], 10);  // X
+                  }
+                }
+
+                // Case 2: 'Waiting for others to join' => treat as 1 (only you)
+                const waitingEl = nodes.find(el => el.textContent && el.textContent.includes('Waiting for others to join'));
+                if (waitingEl) {
+                  return 1;
+                }
+
+                return null;
+              }
+
+              function check() {
+                const count = readCount();
+                if (count == null) return;
+
+                // First time we see a valid count
+                if (lastCount === -1) {
+                  // If more than 1, someone else is already here
+                  if (count > 1) {
+                    post({
+                      type: 'participantJoined',
+                      count: count,
+                      ts: Date.now()
+                    });
+                  }
+                  lastCount = count;
+                  return;
+                }
+
+                // Subsequent changes
+                if (count > lastCount) {
+                  post({
+                    type: 'participantJoined',
+                    count: count,
+                    ts: Date.now()
+                  });
+                } else if (count < lastCount) {
+                  post({
+                    type: 'participantLeft',
+                    count: count,
+                    ts: Date.now()
+                  });
+                }
+
+                lastCount = count;
+              }
+
+              const observer = new MutationObserver(() => {
+                try { check(); } catch(e) {}
+              });
+
+              observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                characterData: true
+              });
+
+              check();
+            })();
+            ");
         }
 
 
 
+        private class WebMessagePayload
+        {
+            public string? type { get; set; }   // "handSnackbar", "chatMessage", "participantJoined", ...
+            public string? text { get; set; }   // message text
+            public string? from { get; set; }   // chat sender
+            public int? count { get; set; }     // participant number
+            public long? ts { get; set; }       // timestamp
+        }
 
 
         private void CoreWebView2_WebMessageReceived(
@@ -503,39 +628,83 @@ namespace DailyDesktopApp
             try
             {
                 string raw = e.WebMessageAsJson;
-
                 Console.WriteLine("JS → .NET message received:");
                 Console.WriteLine(raw);
 
-                var msg = JsonSerializer.Deserialize<HandRaiseMessage>(raw);
-                if (msg == null)
+                var msg = JsonSerializer.Deserialize<WebMessagePayload>(raw);
+                if (msg == null || string.IsNullOrWhiteSpace(msg.type))
                     return;
 
+                // =======================
+                // 1) Hand raise snackbar
+                // =======================
                 if (string.Equals(msg.type, "handSnackbar", StringComparison.OrdinalIgnoreCase))
                 {
                     var text = msg.text;
                     if (string.IsNullOrWhiteSpace(text))
-                    {
                         text = "A student raised their hand.";
-                    }
 
                     Dispatcher.Invoke(() =>
                     {
-                        // Mirror Daily's own wording
                         StatusText.Text = text;
 
-                        // 🔊 Only play sound if we REALLY showed a new toast
-                        if (ShowHandRaiseOverlay(text))
-                        {
+                        if (ShowToast(text, showEmoji: true))
                             PlayHandRaiseSound();
-                        }
                     });
 
                     return;
                 }
 
+                // =======================
+                // 2) Chat message
+                // =======================
+                if (string.Equals(msg.type, "chatMessage", StringComparison.OrdinalIgnoreCase))
+                {
+                    var author = msg.from ?? "Student";
+                    var chatText = msg.text ?? string.Empty;
+                    var toastText = $"{author}:\n{chatText}";
 
-                // Other message types (if any in future)
+                    Dispatcher.Invoke(() =>
+                    {
+                        StatusText.Text = toastText;
+                        if (ShowToast(toastText, showEmoji: false))
+                            PlayHandRaiseSound();   // same sound for now
+                    });
+
+                    return;
+                }
+
+                // =======================
+                // 3) Participant joined
+                // =======================
+                if (msg.type == "participantJoined")
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        ShowToast("A participant joined the call.", showEmoji: false);
+                    });
+                    return;
+                }
+
+                // =======================
+                // 4) Participant left
+                // =======================
+                if (msg.type == "participantLeft")
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        var text = "A participant left the call.";
+                        if (ShowToast(text, showEmoji: false))
+                        {
+                            PlayParticipantLeftSound();  // 🔊 UNIQUE LEAVE SOUND
+                        }
+                    });
+                    return;
+                }
+
+                // =======================
+                // 5) Fallback
+                // =======================
                 Dispatcher.Invoke(() =>
                 {
                     StatusText.Text = $"JS message: {raw}";
@@ -546,7 +715,6 @@ namespace DailyDesktopApp
                 Console.WriteLine("Error processing JS message: " + ex.Message);
             }
         }
-
 
 
 
