@@ -11,6 +11,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;   
 using System.Windows.Threading;
+using System.Diagnostics;
+using NAudio.CoreAudioApi;
 
 namespace DailyDesktopApp
 {
@@ -52,7 +54,10 @@ namespace DailyDesktopApp
                 DailyWebView.Visibility = Visibility.Collapsed;
             }
         }
-
+        // NAudio volume guard
+        private MMDeviceEnumerator? _deviceEnumerator;
+        private DispatcherTimer? _volumeGuardTimer;
+        private float _guardTargetVolume = 1.0f; // 1.0 = 100%
         private List<OnlineRoom> _rooms = new();
         // Hand-raise sound mute flag
         private bool _handSoundMuted = false;
@@ -78,6 +83,97 @@ namespace DailyDesktopApp
                 ReconnectButton.IsEnabled = false;
             }
         }
+        private void InitVolumeGuard()
+        {
+            try
+            {
+                _deviceEnumerator = new MMDeviceEnumerator();
+
+                _guardTargetVolume = 1.0f; // aim for full volume
+
+                _volumeGuardTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(500)
+                };
+                _volumeGuardTimer.Tick += VolumeGuardTimer_Tick;
+                _volumeGuardTimer.Start();
+
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = $"Volume guard init failed: {ex.Message}";
+                Debug.WriteLine("Volume guard init failed: " + ex.Message);
+            }
+        }
+
+        private void VolumeGuardTimer_Tick(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (_deviceEnumerator == null)
+                    return;
+
+                var devices = _deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
+
+                foreach (var dev in devices)
+                {
+                    var sessionManager = dev.AudioSessionManager;
+                    var sessions = sessionManager.Sessions;
+
+                    for (int i = 0; i < sessions.Count; i++)
+                    {
+                        var session = sessions[i];
+
+                        Process? p = null;
+                        try
+                        {
+                            int pid = (int)session.GetProcessID;
+                            if (pid != 0)
+                                p = Process.GetProcessById(pid);
+                        }
+                        catch
+                        {
+                            // process may have exited, ignore
+                        }
+
+                        if (p == null)
+                            continue;
+
+                        string procName = (p.ProcessName ?? string.Empty).ToLowerInvariant();
+
+                        // 🔎 Target BOTH your app and WebView2 runtime
+                        bool isOurAudio =
+                            procName == "dailydesktopapp" ||
+                            procName.Contains("msedgewebview2");
+
+                        if (!isOurAudio)
+                            continue;
+
+                        var simple = session.SimpleAudioVolume;
+                        float current = simple.Volume; // 0.0–1.0
+
+                        // Update target if user turned us up
+                        if (current > _guardTargetVolume + 0.01f)
+                        {
+                            _guardTargetVolume = current;
+                        }
+
+                        if (current < _guardTargetVolume - 0.05f && !simple.Mute)
+                        {
+                            simple.Volume = _guardTargetVolume;
+
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Volume guard tick error: " + ex.Message);
+            }
+        }
+
+
+
 
         // --------------------------------------------------------------------
         // Overlay helpers
@@ -354,6 +450,9 @@ namespace DailyDesktopApp
             {
                 SetConnectedState(false); // no last room: keep disabled
             }
+
+            // ✅ Start the volume guard
+            InitVolumeGuard();
             Loaded += MainWindow_Loaded;
         }
 
@@ -608,8 +707,6 @@ namespace DailyDesktopApp
             })();
             ");
         }
-
-
 
         private class WebMessagePayload
         {
@@ -1051,7 +1148,21 @@ namespace DailyDesktopApp
             Properties.Settings.Default.WindowLeft = Left;
             Properties.Settings.Default.WindowTop = Top;
             Properties.Settings.Default.Save();
+
+            try
+            {
+                _volumeGuardTimer?.Stop();
+                _volumeGuardTimer = null;
+
+                _deviceEnumerator?.Dispose();
+                _deviceEnumerator = null;
+            }
+            catch
+            {
+                // ignore
+            }
         }
+
     }
 
     // ------------------------------------------------------------------------
