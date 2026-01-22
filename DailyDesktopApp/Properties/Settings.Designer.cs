@@ -118,5 +118,17 @@ namespace DailyDesktopApp.Properties {
                 this["HandRaiseMuted"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ChatMuted {
+            get {
+                return ((bool)(this["ChatMuted"]));
+            }
+            set {
+                this["ChatMuted"] = value;
+            }
+        }
     }
 }

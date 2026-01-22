@@ -23,11 +23,15 @@
 	<ItemGroup>
 	  <None Remove="Assets\eurognosistar.png" />
 	  <None Remove="Assets\raisedhand.png" />
+	  <None Remove="Sounds\chat.wav" />
 	  <None Remove="Sounds\handraise.wav" />
 	  <None Remove="Sounds\participant-left.wav" />
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Resource Include="Sounds\chat.wav">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Sounds\participant-left.wav">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>

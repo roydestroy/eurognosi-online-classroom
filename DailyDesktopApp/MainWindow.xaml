@@ -682,18 +682,31 @@
                    VerticalAlignment="Center"
                    FontSize="11"
                    Text="Select a school and teacher."/>
+                    <!-- Sound toggles -->
+                    <StackPanel Grid.Column="2"
+            Orientation="Horizontal"
+            VerticalAlignment="Center"
+            Margin="8,0,0,0">
 
-                    <!-- Hand-raise sound toggle -->
-                    <CheckBox x:Name="HandSoundCheckBox"
-                  Grid.Column="2"
-                  VerticalAlignment="Center"
-                  Margin="8,0,0,0"
-                  Foreground="#9CA3AF"
-                  FontSize="11"
-                  Checked="HandSoundCheckBox_Checked"
-                  Unchecked="HandSoundCheckBox_Unchecked">
-                        Notification sound
-                    </CheckBox>
+                        <CheckBox x:Name="HandSoundCheckBox"
+              Foreground="#9CA3AF"
+              FontSize="11"
+              Margin="0,0,12,0"
+              Checked="HandSoundCheckBox_Checked"
+              Unchecked="HandSoundCheckBox_Unchecked">
+                            Hand-Raise sound
+                        </CheckBox>
+
+                        <CheckBox x:Name="ChatSoundCheckBox"
+              Foreground="#9CA3AF"
+              FontSize="11"
+              Checked="ChatSoundCheckBox_Checked"
+              Unchecked="ChatSoundCheckBox_Unchecked">
+                            Chat sound
+                        </CheckBox>
+
+                    </StackPanel>
+
                 </Grid>
             </Border>
         </Grid>

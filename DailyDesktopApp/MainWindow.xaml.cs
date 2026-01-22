@@ -61,6 +61,7 @@ namespace DailyDesktopApp
         private List<OnlineRoom> _rooms = new();
         // Hand-raise sound mute flag
         private bool _handSoundMuted = false;
+        private bool _chatSoundMuted = false;
         private string? _currentRoomUrl;
         // Toast-style hand raise overlays (stacked)
         private readonly List<HandRaiseOverlayWindow> _toastWindows = new();
@@ -386,6 +387,25 @@ namespace DailyDesktopApp
                 SystemSounds.Asterisk.Play();
             }
         }
+        private void PlayChatSound()
+        {
+            if (_chatSoundMuted)
+                return;
+
+            try
+            {
+                var uri = new Uri("pack://application:,,,/Sounds/chat.wav");
+                var stream = Application.GetResourceStream(uri).Stream;
+                var player = new SoundPlayer(stream);
+                player.Play();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Chat sound error: " + ex.Message);
+                SystemSounds.Asterisk.Play();
+            }
+        }
+
         private void HandSoundCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             // Checked = sound ON
@@ -399,6 +419,21 @@ namespace DailyDesktopApp
             // Unchecked = sound OFF
             _handSoundMuted = true;
             Properties.Settings.Default.HandRaiseMuted = true;
+            Properties.Settings.Default.Save();
+        }
+        private void ChatSoundCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            // Checked = sound ON
+            _chatSoundMuted = false;
+            Properties.Settings.Default.ChatMuted = false;
+            Properties.Settings.Default.Save();
+        }
+
+        private void ChatSoundCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            // Unchecked = sound OFF
+            _chatSoundMuted = true;
+            Properties.Settings.Default.ChatMuted = true;
             Properties.Settings.Default.Save();
         }
 
@@ -417,6 +452,14 @@ namespace DailyDesktopApp
                 // Checked = sound ON
                 HandSoundCheckBox.IsChecked = !_handSoundMuted;
             }
+            // 🔊 Load saved chat mute state
+            _chatSoundMuted = Properties.Settings.Default.ChatMuted;
+            if (ChatSoundCheckBox != null)
+            {
+                // Checked = sound ON
+                ChatSoundCheckBox.IsChecked = !_chatSoundMuted;
+            }
+
             UpdateEmptyState(false);
             // Keep maximized window within the working area (above the taskbar)
             MaxHeight = SystemParameters.WorkArea.Height +8;
@@ -765,7 +808,7 @@ namespace DailyDesktopApp
                     {
                         StatusText.Text = toastText;
                         if (ShowToast(toastText, showEmoji: false))
-                            PlayHandRaiseSound();   // same sound for now
+                            PlayChatSound();
                     });
 
                     return;
